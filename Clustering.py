@@ -5,7 +5,9 @@ from sklearn.decomposition import PCA
 import matplotlib.pyplot as plt
 import seaborn as sns
 from scipy.cluster.hierarchy import dendrogram, linkage
-from sklearn.preprocessing import StandardScaler
+
+from Utils import scaler_data_standard
+
 
 class HierarchicalClustering:
     def __init__(self, data: np.ndarray, n_clusters: int = 4, linkage_method: str = 'ward', scale_data: bool = True):
@@ -25,8 +27,7 @@ class HierarchicalClustering:
         
         if self.scale_data:
             # Standardize the data if required
-            self.scaler = StandardScaler()
-            self.data_scaled = self.scaler.fit_transform(data)
+            self.data_scaled = scaler_data_standard(data)[0]
         else:
             self.data_scaled = data
 
@@ -34,11 +35,25 @@ class HierarchicalClustering:
         self.clustering_model = AgglomerativeClustering(n_clusters=self.n_clusters, linkage=self.linkage_method)
         self.clusters = self.clustering_model.fit_predict(self.data_scaled)
         
+        # Perform PCA reduction on sclaed input data
         self.reduced_data = self.perform_PCA(self.data_scaled)[0]
+
+    def _merge_scaled_data_centroids(self):
+        # Create dataframe with scaled data
+        df_scaled_data = pd.DataFrame(self.data_scaled, columns=list(self.data.columns), index=self.data.index)
+        
+        # Retrieve df centroids
+        df_centroids = self.get_cluster_centroids()[0]
+
+        # Merge the two dataframes
+        df_merged = pd.concat([df_scaled_data, df_centroids])
+        
+        return df_merged
+
 
     def perform_PCA(self, data):
         # If the input is a numpy array, assign default names like 'Feature_1', 'Feature_2', ...
-        feature_names = [f'Feature_{i+1}' for i in range(data.shape[1])]
+        feature_names = list(self.data.columns)
     
         # Perform PCA 
         pca = PCA(n_components=2)
@@ -68,22 +83,24 @@ class HierarchicalClustering:
         Plot the clusters in the 2D PCA-reduced space.
         """
         plt.figure(figsize=(10, 7))
-        plt.scatter(self.reduced_data[:, 0], self.reduced_data[:, 1], c=self.clusters, cmap='viridis')
+        plt.scatter(self.reduced_data[:, 0], self.reduced_data[:, 1], c=self.clusters, cmap='viridis') #fix reduced data
         
         # Add labels for each data point
-        for i, label in enumerate(self.data.index):
+        for i, label in enumerate(self.data.index): # fix enumerate
             plt.text(self.reduced_data[i, 0], self.reduced_data[i, 1], label, fontsize=7, ha='right', va='bottom')
 
         # Get the centroids of the clusters
-        centroids = self.get_cluster_centroids()[1]
+        #centroids = self.get_cluster_centroids()[1]
         
         # Plot the centroids with a distinct marker (e.g., red 'X')
-        plt.scatter(centroids[:, 0], centroids[:, 1], c='red', marker='o', s=25, label='Centroids')
+        #plt.scatter(centroids[:, 0], centroids[:, 1], c='red', marker='o', s=25, label='Centroids')
 
         # Add the cluster numbers next to the centroids
-        for i, (x, y) in enumerate(zip(centroids[:, 0], centroids[:, 1])):
-            plt.text(x, y, f'Cluster {i}', fontsize=10, ha='center', va='center', color='black')
+        #for i, (x, y) in enumerate(zip(centroids[:, 0], centroids[:, 1])):
+        #    plt.text(x, y, f'Cluster {i}', fontsize=10, ha='center', va='center', color='black')
     
+        # Set equal scaling for both axes
+        plt.gca().set_aspect('equal', adjustable='box')
     
         plt.title(f"Agglomerative Clustering (n_clusters={self.n_clusters}) - 2D PCA")
         plt.xlabel("Principal Component 1")
@@ -97,8 +114,9 @@ class HierarchicalClustering:
         
         Returns:
         - centroids: A DataFrame containing the centroids of the clusters.
+        - PCA-reduced centroids: An array of the PCA components of the centroids.
         """
-        cluster_centroids = pd.DataFrame(columns=[f'Feature_{i+1}' for i in range(self.data.shape[1])])
+        cluster_centroids = pd.DataFrame(columns=list(self.data.columns))
         
         for i in range(self.n_clusters):
             cluster_data = self.data_scaled[self.clusters == i]
@@ -107,7 +125,7 @@ class HierarchicalClustering:
 
         pca_cluster_centroids = self.perform_PCA(cluster_centroids)
         
-        return cluster_centroids, pca_cluster_centroids[0], pca_cluster_centroids[1] 
+        return cluster_centroids, pca_cluster_centroids[0]
 
     def get_cluster_labels(self):
         """
