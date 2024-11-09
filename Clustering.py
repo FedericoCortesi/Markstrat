@@ -35,15 +35,20 @@ class HierarchicalClustering:
         self.clustering_model = AgglomerativeClustering(n_clusters=self.n_clusters, linkage=self.linkage_method)
         self.clusters = self.clustering_model.fit_predict(self.data_scaled)
         
-        # Perform PCA reduction on sclaed input data
+        # Perform PCA reduction on scaled input data
         self.reduced_data = self.perform_PCA(self.data_scaled)[0]
+
+        # Perform PCA reduction on scaled input data and centroids
+        self.df_data_centroids_scaled = self._merge_scaled_data_centroids()
+        self.reduced_data_centroids = self.perform_PCA(self.df_data_centroids_scaled)[0]
+
 
     def _merge_scaled_data_centroids(self):
         # Create dataframe with scaled data
         df_scaled_data = pd.DataFrame(self.data_scaled, columns=list(self.data.columns), index=self.data.index)
         
         # Retrieve df centroids
-        df_centroids = self.get_cluster_centroids()[0]
+        df_centroids = self.get_cluster_centroids()
 
         # Merge the two dataframes
         df_merged = pd.concat([df_scaled_data, df_centroids])
@@ -77,25 +82,23 @@ class HierarchicalClustering:
         plt.xlabel("Sample index")
         plt.ylabel("Distance")
         plt.show()
+        
 
     def plot_clusters(self):
         """
         Plot the clusters in the 2D PCA-reduced space.
         """
+        # Obtain clusters and centroids numbers
+        clusters_and_centroids = np.append(self.clusters, list(range(self.n_clusters)))
+
+
         plt.figure(figsize=(10, 7))
-        plt.scatter(self.reduced_data[:, 0], self.reduced_data[:, 1], c=self.clusters, cmap='viridis') #fix reduced data
+        plt.scatter(self.reduced_data_centroids[:, 0], self.reduced_data_centroids[:, 1], c=clusters_and_centroids, cmap='viridis') #fix reduced data
         
         # Add labels for each data point
         for i, label in enumerate(self.data.index): # fix enumerate
-            plt.text(self.reduced_data[i, 0], self.reduced_data[i, 1], label, fontsize=7, ha='right', va='bottom')
+            plt.text(self.reduced_data_centroids[i, 0], self.reduced_data_centroids[i, 1], label, fontsize=7, ha='right', va='bottom')
 
-        # Get the centroids of the clusters
-        #centroids = self.get_cluster_centroids()[1]
-        
-        # Plot the centroids with a distinct marker (e.g., red 'X')
-        #plt.scatter(centroids[:, 0], centroids[:, 1], c='red', marker='o', s=25, label='Centroids')
-
-        # Add the cluster numbers next to the centroids
         #for i, (x, y) in enumerate(zip(centroids[:, 0], centroids[:, 1])):
         #    plt.text(x, y, f'Cluster {i}', fontsize=10, ha='center', va='center', color='black')
     
@@ -116,16 +119,15 @@ class HierarchicalClustering:
         - centroids: A DataFrame containing the centroids of the clusters.
         - PCA-reduced centroids: An array of the PCA components of the centroids.
         """
-        cluster_centroids = pd.DataFrame(columns=list(self.data.columns))
+        index_centroids = [f"Centroid_{i}" for i in list(range(self.n_clusters))]
+        cluster_centroids = pd.DataFrame(columns=list(self.data.columns), index=index_centroids)
         
         for i in range(self.n_clusters):
             cluster_data = self.data_scaled[self.clusters == i]
             centroid = np.mean(cluster_data, axis=0)
-            cluster_centroids.loc[i] = centroid
+            cluster_centroids.loc[index_centroids[i]] = centroid
 
-        pca_cluster_centroids = self.perform_PCA(cluster_centroids)
-        
-        return cluster_centroids, pca_cluster_centroids[0]
+        return cluster_centroids
 
     def get_cluster_labels(self):
         """
@@ -136,21 +138,6 @@ class HierarchicalClustering:
         """
         return self.clusters
     
-    def get_cluster_dict_labels(self):
-        """
-        Get the cluster labels assigned to each sample.
-        
-        Returns:
-        - dict_cluster_labels: The point-cluster pair for each sample.
-        """
-        dict_out = {}
-
-        for i, point in enumerate(self.data.index):
-            dict_out[point] = self.clusters[i]
-    
-        return dict_out
-
-
     def get_pca_components(self):
         """
         Get the PCA components used for dimensionality reduction.
@@ -159,3 +146,4 @@ class HierarchicalClustering:
         - pca_components: The PCA components (Principal Component 1 and 2).
         """
         return self.reduced_data
+
