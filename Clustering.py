@@ -3,7 +3,6 @@ import pandas as pd
 from sklearn.cluster import AgglomerativeClustering
 from sklearn.decomposition import PCA
 import matplotlib.pyplot as plt
-import seaborn as sns
 from scipy.cluster.hierarchy import dendrogram, linkage
 
 from Utils import scaler_data_standard
@@ -91,12 +90,12 @@ class HierarchicalClustering:
         # Obtain clusters and centroids numbers
         clusters_and_centroids = np.append(self.clusters, list(range(self.n_clusters)))
 
-
+        # Plot the graph
         plt.figure(figsize=(10, 7))
         plt.scatter(self.reduced_data_centroids[:, 0], self.reduced_data_centroids[:, 1], c=clusters_and_centroids, cmap='viridis') #fix reduced data
         
         # Add labels for each data point
-        for i, label in enumerate(self.data.index): # fix enumerate
+        for i, label in enumerate(self.df_data_centroids_scaled.index): # fix enumerate
             plt.text(self.reduced_data_centroids[i, 0], self.reduced_data_centroids[i, 1], label, fontsize=7, ha='right', va='bottom')
 
         #for i, (x, y) in enumerate(zip(centroids[:, 0], centroids[:, 1])):
