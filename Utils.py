@@ -1,11 +1,11 @@
+from typing import Tuple
 import pandas as pd
 from scipy.stats import rankdata
 import numpy as np
 from sklearn.preprocessing import StandardScaler
 
 
-
-def compute_dataframe_probabilities(dataframe: pd.DataFrame, normalize_by: str = 'row') -> pd.DataFrame:
+def compute_dataframe_cond_prob(dataframe: pd.DataFrame, normalize_by: str = 'row') -> pd.DataFrame:
     """
     Normalize a DataFrame to compute conditional or marginal probabilities.
 
@@ -61,7 +61,7 @@ def cap_dataframe_values(dataframe: pd.DataFrame, cutoff: int = 2) -> pd.DataFra
     return result
 
 
-def scaler_data_standard(data: pd.DataFrame) -> np.ndarray:
+def scaler_data_standard(data: pd.DataFrame) -> Tuple[np.ndarray, pd.DataFrame, StandardScaler]:
     """
     Standardize features by removing the mean and scaling to unit variance.
 
@@ -69,15 +69,29 @@ def scaler_data_standard(data: pd.DataFrame) -> np.ndarray:
     - data (pd.DataFrame): The input DataFrame to be scaled.
 
     Returns:
-    - np.ndarray: A NumPy array of standardized data with the same shape as the input DataFrame, where each 
-      feature has a mean of 0 and a standard deviation of 1.
-    - pd.DataFrame: a Pandas Dataframe of standardized data with the same shape, index, and columns as the 
-      input DataFrame, where each feature has a mean of 0 and a standard deviation of 1.
+    - np.ndarray: A NumPy array of standardized data with the same shape as the input DataFrame.
+    - pd.DataFrame: A Pandas DataFrame of standardized data with the same shape, index, and columns as the input DataFrame.
+    - StandardScaler: The fitted StandardScaler object used for transforming the data.
     """
     scaler = StandardScaler()
     data_scaled = scaler.fit_transform(data)
+
+    return data_scaled,scaler
+
+def inverse_scaler_data_standard(data_scaled: np.ndarray, scaler : StandardScaler) -> pd.DataFrame:
+    """
+    Revert the standardization of features to the original scale.
+
+    Parameters:
+    - data_scaled (np.ndarray): The standardized data to be inverted.
+    - scaler (StandardScaler): The fitted StandardScaler object used for the original transformation.
+
+    Returns:
+    - pd.DataFrame: A DataFrame with the data reverted to the original scale.
+    """
+    # Use the scaler to perform the inverse transformation
+    data_original = scaler.inverse_transform(data_scaled)
     
-    df_out = pd.DataFrame(data_scaled, index=data.index, columns=list(data.columns))
+    # Return as a DataFrame, preserving the original DataFrame structure
+    return pd.DataFrame(data_original, columns=scaler.feature_names_in_, index=data_scaled.index)
 
-
-    return data_scaled, df_out

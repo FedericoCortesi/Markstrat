@@ -2,10 +2,12 @@ import pandas as pd
 import numpy as np
 from scipy.interpolate import UnivariateSpline
 from DataLoader import DataLoader
+from Brands import Sonites
 
 class Analyzer:
     def __init__(self, 
-                 xlsx_path:str="./Exports/TeamExport_A46051_Alpha_M_Period 2.xlsx", 
+                 xlsx_path:str="./Exports/TeamExport_A46051_Alpha_M_Period 2.xlsx",
+                 segment:str="Sonites", 
                  marketing_mix_segment_weights:dict=None,
                  last_period:int=None):
         
@@ -29,16 +31,25 @@ class Analyzer:
 
         # Instantiate DataLoader
         self.data_loader = DataLoader(xlsx_path=self.xlsx_path)
+
+        if segment == "Sonites":
+            # Instantiate Sonites
+            self.sonites = Sonites()
+            
+            # Obtain the relative importance of features
+            self.rel_importance_features = self.sonites.rel_importance_features
         
-        # Obtain the relative importance of features
-        self.rel_importance_features = self.data_loader.relative_importance_features
-     
-        # Obtain the df for the utilities (conjoint analysis)
-        self.df_utility =  self.data_loader.df_utility
-        
-        # Obtain the df with the semantic ideal values
-        self.df_semantic_ideal = self.data_loader.load_segment_semantic_values()
-        
+            # Obtain the df for the utilities (conjoint analysis)
+            self.df_utility = self.sonites.df_utility
+            
+            # Obtain the df with the semantic ideal values
+            self.df_segments_semantic = self.sonites.df_segments_semantic
+
+        elif segment == "Vodites":
+            pass
+
+        else:
+            raise ValueError        
 
     def _interpolate_and_predict(self, x_values, y_values, x_new=None, steps=20):
         if x_new == None:
@@ -110,7 +121,7 @@ class Analyzer:
 
         return df_new
 
-    def compute_centroid(self, dataframe:pd.DataFrame=None, period:int=None, weights=None):
+    def compute_centroid(self, dataframe:pd.DataFrame=None, weighted:str="marketing", weights=None, period:int=None)->np.ndarray:
         # Set period for which to comput the centroid
         if period == None:
             period = int(self.last_period) + 1 
@@ -125,11 +136,19 @@ class Analyzer:
         data_points = df_last.values
         
         # Define weights
-        if weights is None:
+        if weighted == "marketing":
             weights = np.array(list(self.marketing_mix_segment_weights.values()))
+        
+        elif weighted == "eq":
+            n_segments = len(dataframe["Segments"].unique())
+            weights = np.ones(n_segments)/n_segments
+        
+        elif weighted == "other":
+            weights = weights
+        
         else:
-            pass
-
+            raise TypeError
+ 
         assert np.isclose(sum(weights), 1), "Weights must sum up to 1!"
 
         # Compute the weighted centroid
@@ -152,16 +171,41 @@ class Analyzer:
         return result
 
 
-    def _relevance_score(self, observation:list=None, benchmark:list=None, weights:list=None):
+    def _relevance_score(self, observation:list=None, benchmark:list=None, weights:list=None, max_distance_1D:int=6):
         # Compute max distance, 7-1=6 when using the semantic scales
-        max_distance = np.sqrt(np.sum(weights * (6**2)))
+        max_distance = np.sqrt(np.sum(weights * (max_distance_1D**2)))
 
         distance = self._weighted_distance(observation, benchmark, weights)
 
         return 1 - (distance/max_distance)
 
 
-    def distance_from_centroids(self, df_observations: pd.DataFrame, df_centroids: pd.DataFrame = None, feature_weights: list = None):
+    def distance_from_centroids(self, df_observations: pd.DataFrame, df_centroids: pd.DataFrame = None, feature_weights: list = None, **kwargs):
+        """
+        Calculate distances between observations and centroids across multiple metrics.
+
+        This function computes the Manhattan (absolute) distance, relative distance, 
+        weighted average distance, and relevance score for each observation in 
+        `df_observations` from each centroid in `df_centroids`.
+
+        Parameters:
+        - df_observations (pd.DataFrame): DataFrame containing the observations, with each row 
+        representing an observation and each column representing a feature.
+        - df_centroids (pd.DataFrame, optional): DataFrame containing the centroids, with each row 
+        representing a centroid and each column representing a feature. Defaults to `None`, in which 
+        case a single centroid is created from the `df_centroids` input data.
+        - feature_weights (list, optional): List of feature weights to use in calculating weighted average 
+        distances and relevance scores. Defaults to `self.rel_importance_features`.
+        - **kwargs
+
+        Returns:
+        - tuple: A tuple of dictionaries with the following elements:
+        - abs_res (dict): Dictionary with Manhattan distances for each observation and centroid.
+        - rtv_res (dict): Dictionary with relative distances (absolute distance divided by feature value) 
+            for each observation and centroid.
+        - avg_res (dict): Dictionary with weighted average distances for each observation and centroid.
+        - rlv_scr (dict): Dictionary with relevance scores for each observation and centroid.
+        """
         # Discard unnecessary columns and obtain the values
         try:
             df_observations.set_index(["MARKET : Sonites"], inplace=True)
@@ -175,11 +219,15 @@ class Analyzer:
         else:
             pass
 
-        # Clean centroids_df
-        try:
-            df_centroids = df_centroids[["# Features", "Design Index", "Battery Life", "Display Size", "Proc. Power", "Price"]]
-        except KeyError:
-            pass
+        # Define the columns to keep
+        columns_to_keep = ["# Features", "Design Index", "Battery Life", "Display Size", "Proc. Power", "Price"]
+
+        # Clean centroids_df without affecting the row index
+        df_centroids = df_centroids.reindex(columns=columns_to_keep)
+
+        # Clean df_observations without affecting the row index
+        df_observations = df_observations.reindex(columns=columns_to_keep)
+
 
         if feature_weights is None:
             feature_weights = self.rel_importance_features
@@ -192,15 +240,15 @@ class Analyzer:
         # Initialize dictionaries to store results
         abs_res = {}
         rtv_res = {}
-        rlv_res = {}
         avg_res = {}
+        rlv_scr = {}
 
         for i, feat_values in enumerate(observations_list):
             # Initialize nested dicts for this observation
             abs_res[df_observations.index[i]] = {}
             rtv_res[df_observations.index[i]] = {}
             avg_res[df_observations.index[i]] = {}
-            rlv_res[df_observations.index[i]] = {}
+            rlv_scr[df_observations.index[i]] = {}
 
             # If `ideal_df` is provided, use each row as a centroid, else use the provided `centroid`
             centroids = df_centroids.iterrows() 
@@ -224,10 +272,11 @@ class Analyzer:
                 avg_res[df_observations.index[i]][index] = avg_distance
                 
                 # Calculate relevance score
-                relevance = self._relevance_score(feat_values_array, current_centroid, feature_weights)
-                rlv_res[df_observations.index[i]][index] = relevance
+                relevance = self._relevance_score(feat_values_array, current_centroid, feature_weights, **kwargs)
+                rlv_scr[df_observations.index[i]][index] = relevance
 
-        return abs_res, rtv_res, avg_res, rlv_res
+        return abs_res, rtv_res, avg_res, rlv_scr
+
 
 
     def compute_performance(self, dict_distances:dict=None):

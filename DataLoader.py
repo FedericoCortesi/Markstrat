@@ -12,7 +12,7 @@ class DataLoader:
         # Load all required data upon initialization
         self.relative_importance_features = self._load_relative_importance_features()
         self.df_utility = self._load_utility_dataframe()
-        #self.df_semantic_ideal = self.load_segment_semantic_values()
+        self.df_semantic_ideal = self.load_segment_semantic_values()
 
     def _load_sonites_market_studies(self, sheet_name: str, usecols: str, skiprows: int, nrows: int = None):
         """

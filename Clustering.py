@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 from scipy.cluster.hierarchy import dendrogram, linkage
 
 from Utils import scaler_data_standard
+from Utils import inverse_scaler_data_standard
 
 
 class HierarchicalClustering:
@@ -26,20 +27,20 @@ class HierarchicalClustering:
         
         if self.scale_data:
             # Standardize the data if required
-            self.data_scaled = scaler_data_standard(data)[0]
+            (self.data_scaled, self.scaler)  = scaler_data_standard(data)
         else:
             self.data_scaled = data
 
         # Perform clustering
         self.clustering_model = AgglomerativeClustering(n_clusters=self.n_clusters, linkage=self.linkage_method)
-        self.clusters = self.clustering_model.fit_predict(self.data_scaled)
+        self.clusters_labels = self.clustering_model.fit_predict(self.data_scaled)
         
         # Perform PCA reduction on scaled input data
-        self.reduced_data = self.perform_PCA(self.data_scaled)[0]
+        self.reduced_data = self._perform_PCA(self.data_scaled)[0]
 
         # Perform PCA reduction on scaled input data and centroids
         self.df_data_centroids_scaled = self._merge_scaled_data_centroids()
-        self.reduced_data_centroids = self.perform_PCA(self.df_data_centroids_scaled)[0]
+        self.reduced_data_centroids = self._perform_PCA(self.df_data_centroids_scaled)[0]
 
 
     def _merge_scaled_data_centroids(self):
@@ -54,8 +55,7 @@ class HierarchicalClustering:
         
         return df_merged
 
-
-    def perform_PCA(self, data):
+    def _perform_PCA(self, data):
         # If the input is a numpy array, assign default names like 'Feature_1', 'Feature_2', ...
         feature_names = list(self.data.columns)
     
@@ -83,16 +83,17 @@ class HierarchicalClustering:
         plt.show()
         
 
-    def plot_clusters(self):
+    def plot_scatter(self):
         """
         Plot the clusters in the 2D PCA-reduced space.
         """
         # Obtain clusters and centroids numbers
-        clusters_and_centroids = np.append(self.clusters, list(range(self.n_clusters)))
+        
+        clusters_and_centroids = np.append(self.clusters_labels, list(range(self.n_clusters)))
 
         # Plot the graph
         plt.figure(figsize=(10, 7))
-        plt.scatter(self.reduced_data_centroids[:, 0], self.reduced_data_centroids[:, 1], c=clusters_and_centroids, cmap='viridis') #fix reduced data
+        plt.scatter(self.reduced_data_centroids[:, 0], self.reduced_data_centroids[:, 1], c=clusters_and_centroids, cmap='viridis') 
         
         # Add labels for each data point
         for i, label in enumerate(self.df_data_centroids_scaled.index): # fix enumerate
@@ -122,7 +123,7 @@ class HierarchicalClustering:
         cluster_centroids = pd.DataFrame(columns=list(self.data.columns), index=index_centroids)
         
         for i in range(self.n_clusters):
-            cluster_data = self.data_scaled[self.clusters == i]
+            cluster_data = self.data_scaled[self.clusters_labels == i]
             centroid = np.mean(cluster_data, axis=0)
             cluster_centroids.loc[index_centroids[i]] = centroid
 
@@ -135,7 +136,7 @@ class HierarchicalClustering:
         Returns:
         - cluster_labels: The cluster label for each sample.
         """
-        return self.clusters
+        return self.clusters_labels
     
     def get_pca_components(self):
         """
@@ -145,4 +146,50 @@ class HierarchicalClustering:
         - pca_components: The PCA components (Principal Component 1 and 2).
         """
         return self.reduced_data
+    
+    def get_descaled_dataframe(self)-> pd.DataFrame:
+        """
+        Revert the scaled data back to its original scale.
 
+        This function uses the fitted scaler to apply an inverse transformation 
+        to the scaled data (`df_data_centroids_scaled`) and return it in its 
+        original form.
+
+        Returns:
+        - pd.DataFrame: A DataFrame with the original (unscaled) values, having the 
+        same shape, index, and columns as `df_data_centroids_scaled`.
+        """
+        df_out = inverse_scaler_data_standard(self.df_data_centroids_scaled, self.scaler)
+        return df_out
+
+    def compute_wcd(self) -> float:
+        """
+        Calculate the Within-Cluster Dispersion (WCD).
+
+        Returns:
+        - float: The WCD value, representing the average dispersion within clusters.
+        """
+        # Assign attributes to variables for better handling
+        data = self.data_scaled
+        centroids = self.get_cluster_centroids().values
+        labels = self.clusters_labels
+
+        # Initialize variables to store results
+        total_dispersion = 0.0
+        total_points = 0
+
+        # Loop over centroids and compute distances
+        for i, centroid in enumerate(centroids):
+            # Convert to array
+            centroid = np.asarray(centroid, dtype=np.float64)
+
+            cluster_points = data[labels == i]
+            cluster_points = np.asanyarray(cluster_points, dtype=np.float64)
+
+            distances = np.linalg.norm(cluster_points - centroid, axis=1)
+
+            total_dispersion += np.sum(distances)
+
+            total_points += len(cluster_points)
+
+        return total_dispersion / total_points if total_points > 0 else 0.0

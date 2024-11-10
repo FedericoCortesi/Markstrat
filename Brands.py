@@ -1,5 +1,7 @@
+import pandas as pd
+
 from DataLoader import DataLoader
-from Utils import *
+from Utils import compute_dataframe_cond_prob, cap_dataframe_values
 
 class Sonites:
     """
@@ -17,43 +19,44 @@ class Sonites:
         self.df_sonites_semantic = self.data_loader.load_sonites_semantic_values()
         self.df_sonites_mds = self.data_loader.load_sonites_mds_values()
         
-        # Load segment data through the data loader
+        # Load segment data studies through the data loader
         self.df_segments_semantic = self.data_loader.load_segment_semantic_values()
         self.df_segments_mds = self.data_loader.load_segment_mds_values()
-        
-
+        self.rel_importance_features = self.data_loader.relative_importance_features # semantic scales
+        self.df_utility = self.data_loader.df_utility # conjoint analsys
+                
         # Obtain features (Move and Most)
-        self.move_features = self.obtain_features("MOVE")
-        self.most_features = self.obtain_features("MOST")
+        self.move_features = self.get_features("MOVE")
+        self.most_features = self.get_features("MOST")
 
         # Obtain semantic (Move and Most)
-        self.move_semantic = self.obtain_semantic("MOVE")
-        self.most_semantic = self.obtain_semantic("MOST")
+        self.move_semantic = self.get_semantic("MOVE")
+        self.most_semantic = self.get_semantic("MOST")
 
 
-    def obtain_features(self, brand:str=None):
+    def get_features(self, brand:str=None):
         dataframe = self.df_sonites_phys_char.copy()
         result = dataframe[dataframe.index == brand]
         return result
 
-    def obtain_semantic(self, brand:str=None):
+    def get_semantic(self, brand:str=None):
         dataframe = self.df_sonites_semantic.copy()
         result = dataframe[dataframe.index == brand].copy()
         return result
 
-    def obtain_marketing_mixes(self, capped:bool=True)->pd.DataFrame:
+    def get_marketing_mixes(self, capped:bool=True)->pd.DataFrame:
         # Obtain the marketing dataframe
         df_advertisement_expenditures_abs = self.data_loader.load_sonites_advertising_expenditures_absolute()
         
         # Compute the dataframe with conditional probabilities
-        df_advertisement_expenditures_rel = compute_dataframe_conditional_probabilities(df_advertisement_expenditures_abs)
+        df_advertisement_expenditures_rel = compute_dataframe_cond_prob(df_advertisement_expenditures_abs)
 
         if capped:
             # Obtain the dataframe with capped values
             df_capped = cap_dataframe_values(df_advertisement_expenditures_rel)
 
             # Normalize to obtain values out of 100
-            df_result = compute_dataframe_conditional_probabilities(df_capped)
+            df_result = compute_dataframe_cond_prob(df_capped)
         
         else:
             df_result = df_advertisement_expenditures_rel
@@ -61,7 +64,7 @@ class Sonites:
         return df_result
 
 
-    def obtain_comprehensive_df_semantic(self, last_period:bool=True)->pd.DataFrame:
+    def get_comprehensive_df_semantic(self, last_period:bool=True)->pd.DataFrame:
         df_brands = self.df_sonites_semantic.copy()
         df_segments = self.df_segments_semantic.copy()
         
@@ -74,7 +77,7 @@ class Sonites:
 
         return df_result
 
-    def obtain_comprehensive_df_mds(self, last_period:bool=True)->pd.DataFrame:
+    def get_comprehensive_df_mds(self, last_period:bool=True)->pd.DataFrame:
         df_brands = self.df_sonites_mds.copy()
         df_segments = self.df_segments_mds.copy()
         
@@ -88,9 +91,9 @@ class Sonites:
         return df_result
 
 
-    def obtain_comprehensive_df_features(self, **kwargs)->pd.DataFrame:
-        df_sem = self.obtain_comprehensive_df_semantic(**kwargs)
-        df_mds = self.obtain_comprehensive_df_mds(**kwargs)
+    def get_comprehensive_df_features(self, **kwargs)->pd.DataFrame:
+        df_sem = self.get_comprehensive_df_semantic(**kwargs)
+        df_mds = self.get_comprehensive_df_mds(**kwargs)
         
         df_result = pd.concat([df_sem, df_mds], axis=1)
 
