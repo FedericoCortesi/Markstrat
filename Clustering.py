@@ -193,3 +193,18 @@ class HierarchicalClustering:
             total_points += len(cluster_points)
 
         return total_dispersion / total_points if total_points > 0 else 0.0
+
+    def compute_centroids_spread(self):   
+
+        # Compute the average distance, key:segment value:brand
+        dist_segments_brands = self.compute_distance_from_centroids(df_observations=df_segments, df_centroids=df_brands)
+        res = dist_segments_brands[3]
+        
+        res_dict = {}
+
+        # iterate over keys
+        for key in res.keys():
+            mean_dist = np.mean(list(res[key].values()))
+            res_dict[key] = mean_dist
+
+        return res_dict

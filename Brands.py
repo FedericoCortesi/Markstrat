@@ -44,7 +44,7 @@ class Sonites:
         result = dataframe[dataframe.index == brand].copy()
         return result
 
-    def get_marketing_mixes(self, capped:bool=True)->pd.DataFrame:
+    def get_marketing_mixes(self, capped:bool=False)->pd.DataFrame:
         # Obtain the marketing dataframe
         df_advertisement_expenditures_abs = self.data_loader.load_sonites_advertising_expenditures_absolute()
         

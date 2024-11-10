@@ -95,3 +95,140 @@ def inverse_scaler_data_standard(data_scaled: np.ndarray, scaler : StandardScale
     # Return as a DataFrame, preserving the original DataFrame structure
     return pd.DataFrame(data_original, columns=scaler.feature_names_in_, index=data_scaled.index)
 
+def weighted_distance(observation, benchmark, weights):
+    # Weights refer to features importance
+    if weights is not None:
+        assert np.isclose(sum(weights), 1), "Weights must sum up to 1!"
+    else:
+        print("No weights provided, using simple average instead.")
+        weights = np.ones(len(observation)) / len(observation)
+
+    # Compute result
+    result = np.sqrt(np.sum(weights * (benchmark - observation)**2))
+
+    return result
+
+
+def relevance_score(observation:list=None, benchmark:list=None, weights:list=None, max_distance_1D:int=6):
+    """
+    Compute relevance score based on a weighted distance and a maximum distance in 1D.
+    """
+    # Compute max distance, 7-1=6 when using the semantic scales
+    max_distance = np.sqrt(np.sum(weights * (max_distance_1D**2)))
+
+    distance = weighted_distance(observation, benchmark, weights)
+
+    return 1 - (distance/max_distance)
+
+def compute_distance_from_centroids(df_observations: pd.DataFrame, df_centroids: pd.DataFrame = None, feature_weights: list = None, **kwargs):
+    """
+    Compute multiple distance metrics between observations and centroids.
+
+    This function calculates several distance metrics, including Manhattan distance, relative distance,
+    weighted average distance, and relevance scores, between each observation in `df_observations`
+    and each centroid in `df_centroids`.
+
+    Parameters:
+        df_observations (pd.DataFrame): 
+            DataFrame of observations, with each row representing an observation 
+            and each column representing a feature.
+        df_centroids (pd.DataFrame, optional): 
+            DataFrame of centroids, with each row representing a centroid 
+            and each column representing a feature. If `None`, a single centroid 
+            is created from `df_centroids`.
+        feature_weights (list, optional): 
+            List of weights for features when calculating weighted distances 
+            and relevance scores. Only used if `feature_weights` is not passed.
+        **kwargs: 
+            Additional keyword arguments passed to the relevance score calculation.
+
+    Returns:
+        tuple: 
+            A tuple containing four dictionaries:
+            - abs_res (dict): Euclidean distance for each observation and centroid.
+            - rtv_res (dict): Relative distances (absolute distance divided by feature value) for each observation and centroid.
+            - avg_res (dict): Weighted sum of manhattan distances for each observation and centroid.
+            - rlv_scr (dict): Relevance scores for each observation and centroid.
+
+    Each dictionary key represents an observation, and each value is a dictionary of distances or scores 
+    calculated for that observation relative to each centroid.
+    """
+    # Discard unnecessary columns and obtain the values
+    try:
+        df_observations.set_index(["MARKET : Sonites"], inplace=True)
+    except KeyError:
+        pass
+
+    # Define the columns to keep
+    columns_to_keep = ["# Features", "Design Index", "Battery Life", "Display Size", "Proc. Power", "Price"]
+    
+    # Ensure centroids_df is a dataframe
+    if type(df_centroids) is not pd.DataFrame:
+        df_centroids = pd.DataFrame({
+            "centroid" : df_centroids}).T
+        df_centroids.columns = columns_to_keep
+    else:
+        pass
+
+    # Filter columns to keep only those that exist in df_centroids
+    df_centroids = df_centroids.reindex(columns=columns_to_keep)
+
+    if isinstance(df_observations, pd.DataFrame):
+        # Filter columns to keep only those that exist in df_observations
+        df_observations = df_observations.reindex(columns=columns_to_keep)
+    else:
+        pass
+
+    if feature_weights is None:
+        feature_weights = np.ones(len(columns_to_keep)) / len(columns_to_keep)
+    else:
+        feature_weights = feature_weights
+
+    # Assert feature weights sum up to one
+    assert np.isclose(np.sum(feature_weights),1), "Weights must sum up to 1!"
+
+
+    # Convert observations to a list
+    observations_list = df_observations.values.tolist()
+
+    # Initialize dictionaries to store results
+    abs_res = {}
+    rtv_res = {}
+    avg_res = {}
+    rlv_scr = {}
+
+    for i, feat_values in enumerate(observations_list):
+        # Initialize nested dicts for this observation
+        abs_res[df_observations.index[i]] = {}
+        rtv_res[df_observations.index[i]] = {}
+        avg_res[df_observations.index[i]] = {}
+        rlv_scr[df_observations.index[i]] = {}
+
+        # If `ideal_df` is provided, use each row as a centroid, else use the provided `centroid`
+        centroids = df_centroids.iterrows() 
+
+        for index, row in centroids:
+            # Set the current centroid
+            current_centroid = np.array(row.values)
+            feat_values_array = np.array(feat_values)
+
+            # Compute manhattan distance as a base
+            manhattan_distance = np.abs(current_centroid - feat_values_array) 
+            
+            # Compute Euclidean distances
+            absolute_distance = np.linalg.norm(current_centroid - feat_values_array)
+            abs_res[df_observations.index[i]][index] = absolute_distance
+            
+            # Compute relative distance
+            relative_distance = manhattan_distance / feat_values_array
+            rtv_res[df_observations.index[i]][index] = relative_distance
+            
+            # Calculate weighted average distance 
+            avg_distance = np.sum(feature_weights * manhattan_distance)
+            avg_res[df_observations.index[i]][index] = avg_distance
+            
+            # Calculate relevance score
+            relevance = relevance_score(feat_values_array, current_centroid, feature_weights, **kwargs)
+            rlv_scr[df_observations.index[i]][index] = relevance
+
+    return abs_res, rtv_res, avg_res, rlv_scr
