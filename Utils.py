@@ -161,10 +161,14 @@ def compute_distance_from_centroids(df_observations: pd.DataFrame, df_centroids:
         pass
 
     # Define the columns to keep
-    if research == "semantic":
-        columns_to_keep = ["# Features", "Design Index", "Battery Life", "Display Size", "Proc. Power", "Price"]
-    elif research == "mds":
-        columns_to_keep = ["Economy", "Performance", "Convenience"]
+    columns_to_keep_semantic = ["# Features", "Design Index", "Battery Life", "Display Size", "Proc. Power", "Price"]
+    columns_to_keep_mds = ["Economy", "Performance", "Convenience"]
+
+    # Set columns to keep
+    if any(col in df_observations.columns for col in columns_to_keep_semantic) or df_observations.shape[1] == 6:
+        columns_to_keep = columns_to_keep_semantic
+    elif any(col in df_observations.columns for col in columns_to_keep_mds) or df_observations.shape[1] == 3:
+        columns_to_keep = columns_to_keep_mds
     else:
         raise ValueError
 

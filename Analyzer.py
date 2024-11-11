@@ -155,7 +155,8 @@ class Analyzer:
 
         return weighted_centroid
 
-    def compute_distance_centroids(self, df_observations, df_centroids, weighted: str = "default", feature_weights: list = None, **kwargs)->tuple:
+    def compute_distance_centroids(self, df_observations:pd.DataFrame=None, df_centroids:pd.DataFrame=None, 
+                                   weighted: str = "default", feature_weights: list = None, **kwargs)->tuple:
         """
         Compute the distance between observations and centroids with optional feature weighting.
 
