@@ -120,7 +120,8 @@ def relevance_score(observation:list=None, benchmark:list=None, weights:list=Non
 
     return 1 - (distance/max_distance)
 
-def compute_distance_from_centroids(df_observations: pd.DataFrame, df_centroids: pd.DataFrame = None, feature_weights: list = None, **kwargs):
+def compute_distance_from_centroids(df_observations: pd.DataFrame, df_centroids: pd.DataFrame = None, 
+                                    feature_weights: list = None, research:str="semantic", **kwargs):
     """
     Compute multiple distance metrics between observations and centroids.
 
@@ -160,8 +161,13 @@ def compute_distance_from_centroids(df_observations: pd.DataFrame, df_centroids:
         pass
 
     # Define the columns to keep
-    columns_to_keep = ["# Features", "Design Index", "Battery Life", "Display Size", "Proc. Power", "Price"]
-    
+    if research == "semantic":
+        columns_to_keep = ["# Features", "Design Index", "Battery Life", "Display Size", "Proc. Power", "Price"]
+    elif research == "mds":
+        columns_to_keep = ["Economy", "Performance", "Convenience"]
+    else:
+        raise ValueError
+
     # Ensure centroids_df is a dataframe
     if type(df_centroids) is not pd.DataFrame:
         df_centroids = pd.DataFrame({
@@ -227,7 +233,7 @@ def compute_distance_from_centroids(df_observations: pd.DataFrame, df_centroids:
             avg_distance = np.sum(feature_weights * manhattan_distance)
             avg_res[df_observations.index[i]][index] = avg_distance
             
-            # Calculate relevance score
+            # Calculate relevance score (weighted by default)
             relevance = relevance_score(feat_values_array, current_centroid, feature_weights, **kwargs)
             rlv_scr[df_observations.index[i]][index] = relevance
 
