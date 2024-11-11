@@ -7,6 +7,7 @@ from scipy.cluster.hierarchy import dendrogram, linkage
 
 from Utils import scaler_data_standard
 from Utils import inverse_scaler_data_standard
+from Utils import compute_distance_from_centroids
 
 
 class HierarchicalClustering:
@@ -194,10 +195,10 @@ class HierarchicalClustering:
 
         return total_dispersion / total_points if total_points > 0 else 0.0
 
-    def compute_centroids_spread(self):   
+    def compute_centroids_spread(self):   ### To do!
 
-        # Compute the average distance, key:segment value:brand
-        dist_segments_brands = self.compute_distance_from_centroids(df_observations=df_segments, df_centroids=df_brands)
+        # Compute the average distance 
+        dist_segments_brands = compute_distance_from_centroids(df_observations=df_segments, df_centroids=df_brands)
         res = dist_segments_brands[3]
         
         res_dict = {}
