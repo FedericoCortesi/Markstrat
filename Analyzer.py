@@ -63,16 +63,16 @@ class Analyzer:
 
         y_interp = spline(x_new)
 
-        return y_interp[-1]
+        return y_interp
 
-    def forecast_df(self, dataframe:pd.DataFrame=None)->pd.DataFrame:
+    def forecast_df(self, dataframe:pd.DataFrame=None, steps:int=1)->pd.DataFrame:
         # Define the last period
-        period = max(dataframe["Period"].values) + 1
+        last_period = max(dataframe["Period"].values)
 
         # Build a list of periods
-        x_new = list(range(1, period+1))
+        x_new = list(range(1, last_period+steps+1))
 
-        if dataframe[dataframe["Period"]==period].values.shape[0] == 0:
+        if dataframe[dataframe["Period"]==(last_period+1)].values.shape[0] == 0:
             df_columns = list(dataframe.columns)
 
             col_to_remove = ["Segment", "Period"]
@@ -87,33 +87,39 @@ class Analyzer:
             df_new = dataframe.copy()
             df_new = df_new.sort_values(by="Period")
 
-            # Get the x's (periods)    
-            x_values = df_new["Period"].unique()
-    
+
             # Iterate over columns and segments
             for segment in dataframe["Segment"].unique():
-                # Define dictionary to later append it to the dataframe
-                new_rows = pd.DataFrame({
-                    "Period" : period,
-                    "Segment" : segment 
-                }, index=[0])
+                for period in list(range(last_period+1, last_period+steps+1)):
+                    # Define dictionary to later append it to the dataframe
+                    new_rows = pd.DataFrame({
+                        "Period" : period,
+                        "Segment" : segment 
+                    }, index=[0])
 
-                for col in df_columns:
-                    # Get the y values
-                    y_values = df_new[df_new["Segment"]==segment][col].values
-                    
-                    # Interpolate
-                    new_values = self._interpolate_and_predict(x_values, y_values, x_new)
+                    for col in df_columns:
+                        # Get the x's (periods)    
+                        x_values = df_new["Period"].unique()
+                        x_values = [x_val for x_val in x_values if x_val < period]
 
-                    # Add prediction to the dictionary
-                    new_rows[col] = new_values                                 
+                        # Get the y values
+                        y_values = df_new[df_new["Segment"]==segment][col].values
+                        
+                        # Interpolate
+                        new_values = self._interpolate_and_predict(x_values, y_values, period)
 
-                # Concat new rows
-                df_new = pd.concat([new_rows, df_new], ignore_index=True)
+                        new_rows[col] = new_values    
+
+                    # Concat new rows
+                    df_new = pd.concat([new_rows, df_new], ignore_index=True)                          
+                    # Sort
+                    df_new = df_new.sort_values(by=["Segment"])
+                    df_new = df_new.sort_values(by=["Period"], ascending=True)
 
             # Sort
             df_new = df_new.sort_values(by=["Segment"])
             df_new = df_new.sort_values(by=["Period"], ascending=False)
+            # New index
             df_new.reset_index(inplace=True, drop=True)
             index = df_new["Segment"]+"_"+ df_new["Period"].astype(str)
             df_new.index = index
@@ -175,6 +181,7 @@ class Analyzer:
                 - rtv_res (dict): Relative distances (absolute distance divided by feature value) for each observation and centroid.
                 - avg_res (dict): Weighted sum of manhattan distances for each observation and centroid.
                 - rlv_scr (dict): Relevance scores for each observation and centroid.
+                - man_res (dict): Manhattan distance for each feature and centroid.
 
         """
         if weighted == "default":

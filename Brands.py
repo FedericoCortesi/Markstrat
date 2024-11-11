@@ -33,6 +33,9 @@ class Sonites:
         self.move_semantic = self.get_semantic("MOVE")
         self.most_semantic = self.get_semantic("MOST")
 
+        # Obtain MDS (Move and Most)
+        self.move_mds = self.get_mds("MOVE")
+        self.most_mds = self.get_mds("MOST")
 
     def get_features(self, brand:str=None):
         dataframe = self.df_sonites_phys_char.copy()
@@ -41,6 +44,11 @@ class Sonites:
 
     def get_semantic(self, brand:str=None):
         dataframe = self.df_sonites_semantic.copy()
+        result = dataframe[dataframe.index == brand].copy()
+        return result
+    
+    def get_mds(self, brand:str=None):
+        dataframe = self.df_sonites_mds.copy()
         result = dataframe[dataframe.index == brand].copy()
         return result
 

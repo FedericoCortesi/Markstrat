@@ -150,6 +150,7 @@ def compute_distance_from_centroids(df_observations: pd.DataFrame, df_centroids:
             - rtv_res (dict): Relative distances (absolute distance divided by feature value) for each observation and centroid.
             - avg_res (dict): Weighted sum of manhattan distances for each observation and centroid.
             - rlv_scr (dict): Relevance scores for each observation and centroid.
+            - man_res (dict): Manhattan distance for each feature and centroid.
 
     Each dictionary key represents an observation, and each value is a dictionary of distances or scores 
     calculated for that observation relative to each centroid.
@@ -206,6 +207,7 @@ def compute_distance_from_centroids(df_observations: pd.DataFrame, df_centroids:
     rtv_res = {}
     avg_res = {}
     rlv_scr = {}
+    man_res = {}
 
     for i, feat_values in enumerate(observations_list):
         # Initialize nested dicts for this observation
@@ -213,6 +215,7 @@ def compute_distance_from_centroids(df_observations: pd.DataFrame, df_centroids:
         rtv_res[df_observations.index[i]] = {}
         avg_res[df_observations.index[i]] = {}
         rlv_scr[df_observations.index[i]] = {}
+        man_res[df_observations.index[i]] = {}
 
         # If `ideal_df` is provided, use each row as a centroid, else use the provided `centroid`
         centroids = df_centroids.iterrows() 
@@ -223,7 +226,8 @@ def compute_distance_from_centroids(df_observations: pd.DataFrame, df_centroids:
             feat_values_array = np.array(feat_values)
 
             # Compute manhattan distance as a base
-            manhattan_distance = np.abs(current_centroid - feat_values_array) 
+            manhattan_distance = np.abs(current_centroid - feat_values_array)
+            man_res[df_observations.index[i]][index] = manhattan_distance 
             
             # Compute Euclidean distances
             absolute_distance = np.linalg.norm(current_centroid - feat_values_array)
@@ -241,4 +245,4 @@ def compute_distance_from_centroids(df_observations: pd.DataFrame, df_centroids:
             relevance = relevance_score(feat_values_array, current_centroid, feature_weights, **kwargs)
             rlv_scr[df_observations.index[i]][index] = relevance
 
-    return abs_res, rtv_res, avg_res, rlv_scr
+    return abs_res, rtv_res, avg_res, rlv_scr, man_res
