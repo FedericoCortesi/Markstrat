@@ -8,7 +8,7 @@ from Utils import compute_distance_from_centroids
 
 class Analyzer:
     def __init__(self, 
-                 xlsx_path:str="./Exports/TeamExport_A46051_Alpha_M_Period 2.xlsx",
+                 xlsx_path:str=None,
                  segment:str="Sonites", 
                  marketing_mix_segment_weights:dict=None,
                  last_period:int=None):

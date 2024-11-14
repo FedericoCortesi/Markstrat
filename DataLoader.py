@@ -1,4 +1,5 @@
 import pandas as pd
+import os
 
 class DataLoader:
     def __init__(self, xlsx_path: str = None):
@@ -8,7 +9,14 @@ class DataLoader:
         Parameters:
             xlsx_path (str): Path to the Excel file.
         """
-        self.xlsx_path = xlsx_path
+        if xlsx_path is None:
+            files = os.listdir("./Exports")
+            files.sort()
+            file = files[-1]
+            self.xlsx_path = f"./Exports/{file}"
+        else:
+            self.xlsx_path = xlsx_path
+
         # Load all required data upon initialization
         self.relative_importance_features = self._load_relative_importance_features()
         self.df_utility = self._load_utility_dataframe()

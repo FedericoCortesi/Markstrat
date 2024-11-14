@@ -7,7 +7,7 @@ class Sonites:
     """
     A class representing Sonites with physical and semantic characteristics.
     """
-    def __init__(self, xlsx_path:str="./Exports/TeamExport_A46051_Alpha_M_Period 2.xlsx") -> None:
+    def __init__(self, xlsx_path:str=None) -> None:
         """
         Initialize the Sonites class using a DataLoader instance.
         """

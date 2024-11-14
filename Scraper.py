@@ -7,24 +7,33 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import Select
 from selenium.webdriver.common.keys import Keys
 import pandas as pd
-import random
-import time
 from tqdm import tqdm
 import os
 import numpy as np
+from dotenv import load_dotenv
+import os
+
+
 
 
 class Scraper:
-    def __init__(self) -> None:
+    def __init__(self, headless:bool=True) -> None:
+        # Load environment variables
+        load_dotenv('./variables.env')
 
+        # Store headless
+        self.headless = headless
+        
         # Create Driver
         self._create_driver()
 
         # Store login link
-        self.login_link = "https://markstrat7.stratxsimulations.com/Home/IndexPAK?PAK=PMW-PHLWW"
+        self.login_link = os.getenv('LOGIN_LINK')
+        print(self.login_link)
 
         # Store Password
-        self.password = '8583'
+        self.password = str(os.getenv('PASSWORD'))
+
 
     def _create_driver(self):
         # Define absolute path for download directory
@@ -32,8 +41,12 @@ class Scraper:
 
         # Set up Chrome options
         self.chrome_options = Options()
-        self.chrome_options.add_argument("--headless")
-        self.chrome_options.add_argument("--disable-gpu")
+        if self.headless:
+            self.chrome_options.add_argument("--headless")
+            self.chrome_options.add_argument("--disable-gpu")
+        else:
+            pass
+
         self.chrome_options.add_experimental_option("prefs", {
             "download.default_directory": download_dir,  # Specify your desired download location
             "download.prompt_for_download": False,  # Disable the download prompt
@@ -66,6 +79,17 @@ class Scraper:
         print("-"*10, "Logged In", "-"*10)
         return 
 
+    def _back_to_home(self):
+        # Wait until the image with the specific src is clickable, then click it
+        logo_image = WebDriverWait(self.driver, 10).until(
+            EC.element_to_be_clickable((By.CSS_SELECTOR, "img[src='/Content/Img/MS7_Logo_2.png']"))
+        )
+        logo_image.click()
+    
+        return
+
+
+
     def download_exports(self):
         self._login()
         
@@ -96,7 +120,7 @@ class Scraper:
         return
     
 
-    def _access_semantic_regression(self, type:str="Create"):
+    def _access_regression_semantic(self, reg_type:str="Create", brand:str="MOVE"):
         self._login()
 
         # Wait until the tile is clickable by class name, then click it
@@ -104,17 +128,34 @@ class Scraper:
             EC.element_to_be_clickable((By.CLASS_NAME, 'ANALYZE_4_3'))
         )
         tile.click()
-            
+
+        xpath = f"//input[@type='radio' and @value='{reg_type}']"
+
         # Wait until the dynamic radio button is clickable based on `type`, then click it
         create_radio_button = WebDriverWait(self.driver, 10).until(
-            EC.element_to_be_clickable((By.XPATH, f"//input[@type='radio' and @value='{type}']"))
+            EC.element_to_be_clickable((By.XPATH, xpath))
         )
         create_radio_button.click() 
+
+        if reg_type == "CheckModified" or "Modify":
+            # Wait for Dropdown
+            dropdown = WebDriverWait(self.driver, 10).until(
+                EC.visibility_of_element_located((By.ID, "ddlBrand"))
+            )
+
+            # Initialize the Select object
+            select = Select(dropdown)
+
+            # Wait until the option with the text of the brand is available and select it
+            select.select_by_visible_text(brand)
+
+        else:
+            pass
 
         print("-"*10, "Accessed Regression Page", "-"*10)
         return
 
-    def _access_mds_regression(self):
+    def _access_regression_mds(self, reg_type:str="Create", brand:str="MOVE"):
         self._login()
 
         # Wait until the tile is clickable by class name, then click it
@@ -123,29 +164,57 @@ class Scraper:
         )
         tile.click()
 
-        # Wait until the "Create" radio button is clickable and then click it
+        xpath = f"//input[@type='radio' and @value='{reg_type}']"
+
+        # Wait until the dynamic radio button is clickable based on `type`, then click it
         create_radio_button = WebDriverWait(self.driver, 10).until(
-        EC.element_to_be_clickable((By.XPATH, "//input[@type='radio' and @value='Create']"))
+            EC.element_to_be_clickable((By.XPATH, xpath))
         )
-        create_radio_button.click()        
+        create_radio_button.click() 
+
+        if reg_type == "CheckModified" or reg_type == "Modify":
+            # Wait for Dropdown
+            dropdown = WebDriverWait(self.driver, 10).until(
+                EC.visibility_of_element_located((By.ID, "ddlBrand"))
+            )
+
+            # Initialize the Select object
+            select = Select(dropdown)
+
+            # Wait until the option with the text of the brand is available and select it
+            select.select_by_visible_text(brand)
+
+        else:
+            pass
 
         print("-"*10, "Accessed Regression Page", "-"*10)
         return
     
 
-    def run_regression_semantic(self, inputs):
-        self._access_semantic_regression()
+    def run_regression_semantic(self, inputs_array, reg_type):
+        self._access_regression_semantic(reg_type)
 
         results = {}
-        for i, input in tqdm(enumerate(inputs),desc="Running Regressions..."):
+        for i, input in tqdm(enumerate(inputs_array),desc="Running Regressions..."):
             results_inner = []
             for n in range(1,7):
                 # Define IDs
-                id_input = f'dimPerception_{n}'
-                id_output = f'newAttValue_{n}'
+                if reg_type == "Modify":
+                    id_output = f'dimPerception_{n}'
+                    if n <6:
+                        id_input = f'CurBrdAtt_{n}'
+                    else:
+                        id_input = f'brdPrice'
+                else:
+                    # Define IDs
+                    id_input = f'dimPerception_{n}'
+                    id_output = f'newAttValue_{n}'
 
-                # Insert Random Number and store it
-                input_value = float(input[n-1])
+                # Insert Number and store it
+                if inputs_array.ndim < 2: # is it a single array?
+                    input_value = float(input)
+                else:
+                    input_value = float(input[n-1])
 
                 # Locate the input field by its ID and enter a number
                 input_field = WebDriverWait(self.driver, 10).until(
@@ -164,7 +233,7 @@ class Scraper:
             results[i] = results_inner
 
         # Build Df 
-        df_inputs = pd.DataFrame(inputs)
+        df_inputs = pd.DataFrame(inputs_array)
         index = [f'dimPerception_{n}' for n in range(1, 6 + 1)]
         df_inputs.columns = index
 
@@ -180,83 +249,174 @@ class Scraper:
         inputs = np.random.rand(iterations, 6)*6+1
         
         # Compute the values 
-        res = self.run_regression_semantic(inputs=inputs)
+        res = self.run_regression_semantic(inputs_array=inputs)
 
         return res
-
-    def run_simulations_mds(self, iterations: int = 2):
-        self._access_mds_regression()
-
-        inputs = {}
-        results = {}
-        achieved = {}
-
-        # Add tqdm for iteration progress tracking
-        for iter in tqdm(list(range(1, iterations + 1)), desc="Running simulations"):
-            # Start timer for this iteration
-            start_time = time.time()
-            
-            inputs_inner = []
-            results_inner = []
-            achieved_inner = []
-
-            # Iterate over Inputs
-            for n in range(12, 14 + 1):
+    
+    
+    def _insert_inputs_mds(self, inputs_list:list=None):
+        # Find the lenght of an input 
+        len_single_input = len(inputs_list)
+    
+        if len_single_input == 3:
+            for i, n in enumerate(range(12, 14 + 1)):
                 id_input = f'dimPerception_{n}'
-                input_value = random.uniform(1, 7)
-                inputs_inner.append(input_value)
 
+                input_value = float(inputs_list[i])
+ 
                 input_field = WebDriverWait(self.driver, 10).until(
                     EC.element_to_be_clickable((By.ID, id_input))
                 )
                 self.driver.execute_script("arguments[0].value = arguments[1]; arguments[0].onchange();", input_field, input_value)
+        
+        elif len_single_input == 6:
+            for n in range(1, 6 + 1):
+                if n <6:
+                    id_input = f'brdAtt_{n}'
+                else:
+                    id_input = "brdPrice"
 
-            # Click the button
-            button = WebDriverWait(self.driver, 10).until(
-                EC.element_to_be_clickable((By.ID, 'CalcCharbtn'))
-            )
-            button.click()
+                input_value = float(inputs_list[n])
+ 
+                input_field = WebDriverWait(self.driver, 10).until(
+                    EC.element_to_be_clickable((By.ID, id_input))
+                )
+                self.driver.execute_script("arguments[0].value = arguments[1]; arguments[0].onchange();", input_field, input_value)
+        
+        return   
+         
 
-            # Find Results
+    def _obtain_results_mds(self, reg_type:str="Create"):
+        results = []
+        
+        # Define cases and store values 
+        if reg_type == "Modify" or reg_type == "Create":
             for n in range(1, 6 + 1):
                 id_output = f'newSemValue_{n}'
                 element = WebDriverWait(self.driver, 10).until(
                     EC.presence_of_element_located((By.ID, id_output))
                 )
                 result_value = element.text
-                results_inner.append(result_value)
+                results.append(result_value)
 
-            # Find Achieved
+        elif reg_type == "CheckModified" or reg_type == "CheckNewBrand":
             for n in range(12, 14 + 1):
-                id_achieved = f'achivedDimValue_{n}'
+                id_output = f'newPerceptionValue_{n}'
                 element = WebDriverWait(self.driver, 10).until(
-                    EC.presence_of_element_located((By.ID, id_achieved))
+                    EC.presence_of_element_located((By.ID, id_output))
                 )
-                achieved_value = element.text
-                achieved_inner.append(achieved_value)
+                result_value = element.text
+                results.append(result_value)
+        else:
+            raise ValueError
+           
+        return results
+    
+    def _obtain_df_indexes_mds(self, reg_type:str=None):
+        inputs_index, outputs_index, achieved_index = [], [], []
+        
+        if reg_type == "Modify" or reg_type == "Create":
+            for n in range(12, 14 + 1):
+                id_input = f'dimPerception_{n}'
+                id_achieved = f'achivedDimValue_{n}'
+                # Append in list
+                inputs_index.append(id_input)
+                achieved_index.append(id_achieved)
 
-            # Store in dictionaries
-            inputs[iter] = inputs_inner
-            results[iter] = results_inner
-            achieved[iter] = achieved_inner
+            for n in range(1, 6+1):
+                id_output = f'newSemValue_{n}'
+                outputs_index.append(id_output)
 
-            # Calculate and print iteration time
-            iter_duration = time.time() - start_time
-            print(f"Iteration {iter} took {iter_duration:.2f} seconds")
+            return inputs_index, outputs_index, achieved_index
+
+        elif reg_type == "CheckModified" or reg_type == "CheckNewBrand":
+            for n in range(1, 6 + 1):
+                if n <6:
+                    id_input = f'brdAtt_{n}'
+                else:
+                    id_input = "brdPrice"
+                # Append in list
+                inputs_index.apend(id_input)
+            for n in range(12, 14+1):
+                id_output = f'newPerceptionValue_{n}'
+                outputs_index.append(id_output)
+
+            return inputs_index, outputs_index, achieved_index
+
+        else:
+            raise ValueError
+
 
         
+      
+    def run_regression_mds(self, inputs_array, reg_type:str="Create", brand:str="Move"):
+        self._access_regression_mds(reg_type=reg_type)
+
+        results = {}
+        achieved = {}
+
+        # Add tqdm for iteration progress tracking
+        for i, input_list in tqdm(enumerate(inputs_array), desc="Running simulations"):          
+            results_inner = []
+            achieved_inner = []
+
+            # Insert input with function
+            self._insert_inputs_mds(input_list)
+
+            if reg_type == "Create" or reg_type == "Modify": 
+                # Click the button
+                button = WebDriverWait(self.driver, 10).until(
+                    EC.element_to_be_clickable((By.ID, 'CalcCharbtn'))
+                )
+                button.click()
+            else:
+                pass
+
+            # Find Results
+            results_inner = self._obtain_results_mds(reg_type=reg_type)
+            # Store in dict
+            results[i] = results_inner
+
+            if reg_type == "Create" or reg_type == "Modify": 
+                for n in range(12, 14 + 1):
+                    id_achieved = f'achivedDimValue_{n}' #Sic
+                    element = WebDriverWait(self.driver, 10).until(
+                        EC.presence_of_element_located((By.ID, id_achieved))
+                    )
+                    achieved_value = element.text
+                    achieved_inner.append(achieved_value)
+                # Store in dict
+                achieved[i] = achieved_inner
+
+            else:
+                pass
+        
+        # Obtain indexes 
+        inputs_index, results_index, achieved_index = self._obtain_df_indexes_mds(reg_type=reg_type)
+
         # Build dfs
-        df_inputs = pd.DataFrame(inputs).T
-        index = [f'dimPerception_{n}' for n in range(12, 14 + 1)]
-        df_inputs.columns = index
+        print(inputs_array)
+        df_inputs = pd.DataFrame(inputs_array)
+        df_inputs.columns = inputs_index
 
         df_results = pd.DataFrame(results).T
-        index = [f'newSemValue_{n}' for n in range(1, 6 + 1)]
-        df_results.columns = index
+        df_results.columns = results_index
 
-        df_achieved = pd.DataFrame(achieved).T
-        index = [f'achivedDimValue_{n}' for n in range(12, 14 + 1)] # Sic
-        df_achieved.columns = index
+        # Check to see if achieved can be created
+        if reg_type == "Create" or reg_type == "Modify":
+            df_achieved = pd.DataFrame(achieved).T
+            df_achieved.columns = achieved_index
+            return df_inputs, df_results, df_achieved
+        else:
+            return df_inputs, df_results, None
+   
 
-        self.driver.quit()
-        return df_inputs, df_results, df_achieved
+    def run_simulations_mds(self, iterations:int=2):
+        # Define random inputs
+        inputs = np.random.rand(iterations, 3)*40-20
+        
+        # Compute the values 
+        res = self.run_regression_mds(inputs_array=inputs)
+
+        return res
+
