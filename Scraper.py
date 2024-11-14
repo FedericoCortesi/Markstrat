@@ -14,8 +14,6 @@ from dotenv import load_dotenv
 import os
 
 
-
-
 class Scraper:
     def __init__(self, headless:bool=True) -> None:
         # Load environment variables
@@ -29,7 +27,6 @@ class Scraper:
 
         # Store login link
         self.login_link = os.getenv('LOGIN_LINK')
-        print(self.login_link)
 
         # Store Password
         self.password = str(os.getenv('PASSWORD'))
@@ -155,6 +152,113 @@ class Scraper:
         print("-"*10, "Accessed Regression Page", "-"*10)
         return
 
+    def _insert_inputs_semantic(self, inputs_list:list=None):
+        # Find maximum  
+        max_single_input = max(inputs_list)
+    
+        if max_single_input <= 7:
+            for n in range(1, 6 + 1):
+                id_input = f'dimPerception_{n}'
+
+                input_value = float(inputs_list[n-1])
+ 
+                input_field = WebDriverWait(self.driver, 10).until(
+                    EC.element_to_be_clickable((By.ID, id_input))
+                )
+                self.driver.execute_script("arguments[0].value = arguments[1]; arguments[0].onchange();", input_field, input_value)
+        
+        else:
+            for n in range(1, 6 + 1):
+                if n <6:
+                    id_input = f'brdAtt_{n}'
+                else:
+                    id_input = "brdPrice"
+
+                input_value = float(inputs_list[n])
+ 
+                input_field = WebDriverWait(self.driver, 10).until(
+                    EC.element_to_be_clickable((By.ID, id_input))
+                )
+                self.driver.execute_script("arguments[0].value = arguments[1]; arguments[0].onchange();", input_field, input_value)
+        
+        return   
+
+    def _obtain_results_semantic(self, reg_type:str=None):
+        results = []
+        
+        # Define cases and store values 
+        if reg_type == "Modify" or reg_type == "Create":
+            for n in range(1, 6 + 1):
+                id_output = f'newAttValue_{n}'
+                element = WebDriverWait(self.driver, 10).until(
+                    EC.presence_of_element_located((By.ID, id_output))
+                )
+                result_value = element.text
+                results.append(result_value)
+
+        elif reg_type == "CheckModified" or reg_type == "CheckNewBrand":
+            for n in range(1, 6 + 1):
+                id_output = f'newPerceptionValue_{n}'
+                element = WebDriverWait(self.driver, 10).until(
+                    EC.presence_of_element_located((By.ID, id_output))
+                )
+                result_value = element.text
+                results.append(result_value)
+        else:
+            raise ValueError
+            
+        return results
+
+    def _obtain_df_index_semantic(self, reg_type:str=None):
+        index = []
+        
+        # Define cases and store values 
+        if reg_type == "Modify" or reg_type == "Create":          
+            index = [f'newAttValue_{n}' for n in range(1, 6 + 1)]
+
+        elif reg_type == "CheckModified" or reg_type == "CheckNewBrand":
+            index = [f'newPerceptionValue_{n}' for n in range(1, 6 + 1)]
+        else:
+            raise ValueError
+            
+        return index
+
+
+   
+    def run_regression_semantic(self, inputs_array:np.ndarray, reg_type:None, brand:str="MOVE"):
+        self._access_regression_semantic(reg_type, brand=brand)
+
+        results = {}
+
+        for i, input_list in tqdm(enumerate(inputs_array),desc="Running Regressions..."):
+            results_inner = []
+
+            # Insert inputs with function
+            self._insert_inputs_semantic(input_list)
+
+            # Obtain results with function
+            results_inner = self._obtain_results_semantic(reg_type)
+            
+            # Store in Dict
+            results[i] = results_inner
+
+        # Build Df 
+        df_results = pd.DataFrame(results).T
+        index = self._obtain_df_index_semantic(reg_type)
+        df_results.columns = index
+            
+        return df_results
+
+
+    def generate_samples_semantic(self, iterations:int = 2, reg_type:str=None):
+        # Define random inputs
+        inputs = np.random.rand(iterations, 6)*6+1
+        
+        # Compute the values 
+        res = self.run_regression_semantic(inputs_array=inputs, reg_type=reg_type)
+
+        return res
+    
     def _access_regression_mds(self, reg_type:str="Create", brand:str="MOVE"):
         self._login()
 
@@ -189,70 +293,6 @@ class Scraper:
 
         print("-"*10, "Accessed Regression Page", "-"*10)
         return
-    
-
-    def run_regression_semantic(self, inputs_array, reg_type):
-        self._access_regression_semantic(reg_type)
-
-        results = {}
-        for i, input in tqdm(enumerate(inputs_array),desc="Running Regressions..."):
-            results_inner = []
-            for n in range(1,7):
-                # Define IDs
-                if reg_type == "Modify":
-                    id_output = f'dimPerception_{n}'
-                    if n <6:
-                        id_input = f'CurBrdAtt_{n}'
-                    else:
-                        id_input = f'brdPrice'
-                else:
-                    # Define IDs
-                    id_input = f'dimPerception_{n}'
-                    id_output = f'newAttValue_{n}'
-
-                # Insert Number and store it
-                if inputs_array.ndim < 2: # is it a single array?
-                    input_value = float(input)
-                else:
-                    input_value = float(input[n-1])
-
-                # Locate the input field by its ID and enter a number
-                input_field = WebDriverWait(self.driver, 10).until(
-                EC.element_to_be_clickable((By.ID, id_input))
-                )            
-
-                # Use JavaScript to set the value directly
-                self.driver.execute_script("arguments[0].value = arguments[1]; arguments[0].onchange();", input_field, input_value)
-
-                # Locate the element by its ID and retrieve the text content
-                element = self.driver.find_element(By.ID, id_output)
-                result_value = element.text  # Retrieve the inner text of the <td> element
-                results_inner.append(result_value)
-            
-            # Store in Dict
-            results[i] = results_inner
-
-        # Build Df 
-        df_inputs = pd.DataFrame(inputs_array)
-        index = [f'dimPerception_{n}' for n in range(1, 6 + 1)]
-        df_inputs.columns = index
-
-        df_results = pd.DataFrame(results).T
-        index = [f'newAttValue_{n}' for n in range(1, 6 + 1)]
-        df_results.columns = index
-            
-        return df_inputs, df_results
-
-
-    def run_simulations_semantic(self, iterations:int = 2):
-        # Define random inputs
-        inputs = np.random.rand(iterations, 6)*6+1
-        
-        # Compute the values 
-        res = self.run_regression_semantic(inputs_array=inputs)
-
-        return res
-    
     
     def _insert_inputs_mds(self, inputs_list:list=None):
         # Find the lenght of an input 
@@ -349,7 +389,7 @@ class Scraper:
 
         
       
-    def run_regression_mds(self, inputs_array, reg_type:str="Create", brand:str="Move"):
+    def run_regression_mds(self, inputs_array:np.ndarray, reg_type:str="Create", brand:str="Move"):
         self._access_regression_mds(reg_type=reg_type)
 
         results = {}
@@ -411,7 +451,7 @@ class Scraper:
             return df_inputs, df_results, None
    
 
-    def run_simulations_mds(self, iterations:int=2):
+    def generate_samples_mds(self, iterations:int=2):
         # Define random inputs
         inputs = np.random.rand(iterations, 3)*40-20
         
@@ -419,4 +459,3 @@ class Scraper:
         res = self.run_regression_mds(inputs_array=inputs)
 
         return res
-

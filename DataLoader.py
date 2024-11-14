@@ -93,8 +93,6 @@ class DataLoader:
 
         return data.iloc[:32].dropna()
 
-
-
     def load_sonites_physical_characteristics(self) -> pd.DataFrame:
         """
         Load and clean the physical characteristics data for Sonites.
@@ -105,7 +103,14 @@ class DataLoader:
         data = pd.read_excel(self.xlsx_path, 
                              sheet_name="Sonites",
                              usecols="D:L",
-                             skiprows=17)
+                             skiprows=18,
+                             nrows=10)
+        
+        data.set_index("MARKET : Sonites", inplace=True)
+        
+        # Drop the total column
+        data.drop(columns=["Launched in Period"], inplace=True)
+        
         return data.dropna()
 
     def load_sonites_semantic_values(self) -> pd.DataFrame:
