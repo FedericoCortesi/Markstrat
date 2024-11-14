@@ -255,4 +255,36 @@ class Analyzer:
         return dict_output
 
 
+    def interpolate_utilities(df_utility, feature, weights):
+        level = f'{feature}_Level'
+        util = f'{feature}_Utility'
+
+        # Get unique sectors
+        sectors = df_utility["Segment"].unique()
+        x_values = df_utility[level].unique()
+        # Initialize a DataFrame with x_values as the index
+        result_df = pd.DataFrame(x_values, columns=[level])
+
+        # Perform interpolation for each sector and add the results to the DataFrame
+        for sector in sectors:
+            # Filter the data for the current sector
+            x_base = df_utility[df_utility["Segment"] == sector][level].values
+            y_base = df_utility[df_utility["Segment"] == sector][util].values
+
+            # Create the spline and interpolate
+            spline = UnivariateSpline(x_base, y_base, k=3, s=0)
+            y_interp = spline(x_values)
+            y_interp = np.clip(y_interp, a_min=0, a_max=1)
+
+            # Add the interpolated y values as a new column in result_df
+            result_df[sector] = y_interp
+
+        # Ensure weights add up to 1
+        assert np.isclose(sum(weights.values()), 1), "Weights must sum to 1."
+
+        # Compute the weighted average by multiplying each sector's column by its weight
+        result_df["Weighted_Average"] = sum(result_df[sector] * weight for sector, weight in weights.items())
+
+        return result_df
+
 

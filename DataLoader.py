@@ -17,6 +17,8 @@ class DataLoader:
         else:
             self.xlsx_path = xlsx_path
 
+        print(f"{self.xlsx_path} loaded")
+
         # Load all required data upon initialization
         self.relative_importance_features = self._load_relative_importance_features()
         self.df_utility = self._load_utility_dataframe()
