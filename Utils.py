@@ -246,3 +246,40 @@ def compute_distance_from_centroids(df_observations: pd.DataFrame, df_centroids:
             rlv_scr[df_observations.index[i]][index] = relevance
 
     return abs_res, rtv_res, avg_res, rlv_scr, man_res
+
+
+def combined_error(features, ideal_semantic, ideal_mds, semantic_weights, mds_weights, semantic_scale, model):
+    """
+    Calculate the combined error based on relevance scores for semantic and MDS data given the features.
+
+    Parameters:
+    - features (list): Observation values for the features.
+    - ideal_semantic (list): Ideal values for the semantic features.
+    - ideal_mds (list): Ideal values for the MDS features.
+    - semantic_weights (list): Weights for the semantic features in the relevance score calculation.
+    - mds_weights (list): Weights for the MDS features in the relevance score calculation.
+    - semantic_scale (float): Scaling factor for the semantic score in the combined error calculation (default is 1).
+    - model: Model object used to compute the semantic and MDS values.
+
+    Returns:
+    - float: The total combined error.
+
+    The combined error is a weighted sum of the relevance scores of the semantic 
+    and MDS inputs, indicating how closely the observation aligns with the ideal values.
+    """
+    
+    # Obtain the predicted semantic and MDS values using the model
+    predicted_semantic = model.regress_semantic(features)
+    predicted_mds = model.regress_mds(features)
+
+    # Compute relevance scores for semantic and MDS predictions
+    semantic_relevance_score = relevance_score(predicted_semantic, ideal_semantic, semantic_weights, max_distance_1D=6)
+    mds_relevance_score = relevance_score(predicted_mds, ideal_mds, mds_weights, max_distance_1D=40)
+
+    # Calculate combined error with scaling factor for semantic score
+    semantic_error = semantic_scale * (1 - semantic_relevance_score)
+    mds_error = (1 - mds_relevance_score)
+    total_error = semantic_error + mds_error
+    
+    return total_error
+

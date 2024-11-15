@@ -152,36 +152,32 @@ class Scraper:
         print("-"*10, "Accessed Regression Page", "-"*10)
         return
 
-    def _insert_inputs_semantic(self, inputs_list:list=None):
-        # Find maximum  
-        max_single_input = max(inputs_list)
+    def _insert_inputs_semantic(self, inputs_list: list = None, reg_type: str = None, iter: int = None):
+        if iter is None:  # Check for None correctly
+            input_prefix = 'brdAtt_' if reg_type in ("CheckModified", "CheckNewBrand") else 'dimPerception_'
+            for n in range(1, 7):  # range(1, 7) generates 1 through 6
+                id_input = f'{input_prefix}{n}' if reg_type in ("CheckModified", "CheckNewBrand") else f'dimPerception_{n}'
+                input_value = float(inputs_list[n - 1])
     
-        if max_single_input <= 7:
-            for n in range(1, 6 + 1):
-                id_input = f'dimPerception_{n}'
-
-                input_value = float(inputs_list[n-1])
- 
+            # Wait until input field is clickable and set its value
                 input_field = WebDriverWait(self.driver, 10).until(
                     EC.element_to_be_clickable((By.ID, id_input))
                 )
                 self.driver.execute_script("arguments[0].value = arguments[1]; arguments[0].onchange();", input_field, input_value)
-        
-        else:
-            for n in range(1, 6 + 1):
-                if n <6:
-                    id_input = f'brdAtt_{n}'
-                else:
-                    id_input = "brdPrice"
+        else:  # Handling case when iter is provided
+            if reg_type in ("CheckModified", "CheckNewBrand"):
+                id_input = f'brdAtt_{iter+1}' if iter < 5 else "brdPrice"
+            else:
+                id_input = f'dimPerception_{iter}'
+                    
+            print(id_input)
+            input_value = float(inputs_list)
+            input_field = WebDriverWait(self.driver, 10).until(
+                EC.element_to_be_clickable((By.ID, id_input))
+            )
+            self.driver.execute_script("arguments[0].value = arguments[1]; arguments[0].onchange();", input_field, input_value)
+        return
 
-                input_value = float(inputs_list[n])
- 
-                input_field = WebDriverWait(self.driver, 10).until(
-                    EC.element_to_be_clickable((By.ID, id_input))
-                )
-                self.driver.execute_script("arguments[0].value = arguments[1]; arguments[0].onchange();", input_field, input_value)
-        
-        return   
 
     def _obtain_results_semantic(self, reg_type:str=None):
         results = []
@@ -229,19 +225,20 @@ class Scraper:
         self._access_regression_semantic(reg_type, brand=brand)
 
         results = {}
-
         for i, input_list in tqdm(enumerate(inputs_array),desc="Running Regressions..."):
             results_inner = []
 
-            # Insert inputs with function
-            self._insert_inputs_semantic(input_list)
+            if inputs_array.ndim > 1:
+                # Insert inputs with function
+                self._insert_inputs_semantic(input_list, reg_type)
+            else:
+                self._insert_inputs_semantic(input_list, reg_type, i)
 
             # Obtain results with function
             results_inner = self._obtain_results_semantic(reg_type)
             
-            # Store in Dict
             results[i] = results_inner
-
+            
         # Build Df 
         df_results = pd.DataFrame(results).T
         index = self._obtain_df_index_semantic(reg_type)
@@ -395,13 +392,48 @@ class Scraper:
         results = {}
         achieved = {}
 
-        # Add tqdm for iteration progress tracking
-        for i, input_list in tqdm(enumerate(inputs_array), desc="Running simulations"):          
+        if inputs_array.ndim > 1:
+            # Add tqdm for iteration progress tracking
+            for i, input_array in tqdm(enumerate(inputs_array), desc="Running simulations"):          
+                results_inner = []
+                achieved_inner = []
+
+                # Insert input with function
+                self._insert_inputs_mds(input_array)
+
+                if reg_type == "Create" or reg_type == "Modify": 
+                    # Click the button
+                    button = WebDriverWait(self.driver, 10).until(
+                        EC.element_to_be_clickable((By.ID, 'CalcCharbtn'))
+                    )
+                    button.click()
+                else:
+                    pass
+
+                # Find Results
+                results_inner = self._obtain_results_mds(reg_type=reg_type)
+                # Store in dict
+                results[i] = results_inner
+
+                if reg_type == "Create" or reg_type == "Modify": 
+                    for n in range(12, 14 + 1):
+                        id_achieved = f'achivedDimValue_{n}' #Sic
+                        element = WebDriverWait(self.driver, 10).until(
+                            EC.presence_of_element_located((By.ID, id_achieved))
+                        )
+                        achieved_value = element.text
+                        achieved_inner.append(achieved_value)
+                    # Store in dict
+                    achieved[i] = achieved_inner
+
+                else:
+                    pass
+        else:
             results_inner = []
             achieved_inner = []
 
             # Insert input with function
-            self._insert_inputs_mds(input_list)
+            self._insert_inputs_mds(input_array)
 
             if reg_type == "Create" or reg_type == "Modify": 
                 # Click the button
@@ -459,3 +491,5 @@ class Scraper:
         res = self.run_regression_mds(inputs_array=inputs)
 
         return res
+    
+    
