@@ -248,7 +248,7 @@ def compute_distance_from_centroids(df_observations: pd.DataFrame, df_centroids:
     return abs_res, rtv_res, avg_res, rlv_scr, man_res
 
 
-def combined_error(features, ideal_semantic, ideal_mds, semantic_weights, mds_weights, semantic_scale, model):
+def combined_error(features, ideal_semantic, ideal_mds, semantic_weights, mds_weights, error_weights, model):
     """
     Calculate the combined error based on relevance scores for semantic and MDS data given the features.
 
@@ -276,10 +276,22 @@ def combined_error(features, ideal_semantic, ideal_mds, semantic_weights, mds_we
     semantic_relevance_score = relevance_score(predicted_semantic, ideal_semantic, semantic_weights, max_distance_1D=6)
     mds_relevance_score = relevance_score(predicted_mds, ideal_mds, mds_weights, max_distance_1D=40)
 
-    # Calculate combined error with scaling factor for semantic score
-    semantic_error = semantic_scale * (1 - semantic_relevance_score)
-    mds_error = (1 - mds_relevance_score)
-    total_error = semantic_error + mds_error
+
+    # Calculate combined error as the weighted sum
+    semantic_error = 1 - semantic_relevance_score
+    mds_error = 1 - mds_relevance_score
     
+    # Use an array to hold both errors for the dot product with weights.
+    errors = np.array([semantic_error, mds_error])
+
+    # Normalize errors to 2
+    error_weights = (error_weights / sum(error_weights))*2
+
+    # Now compute the total error as the dot product of the weights and the errors
+    total_error_array = np.dot(error_weights, errors)
+
+    total_error = np.sum(total_error_array)
+
     return total_error
+
 

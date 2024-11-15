@@ -1,12 +1,23 @@
+import os
+import json
 import numpy as np
 from scipy.optimize import differential_evolution
-import pandas as pd
-import json
 from Utils import combined_error
 
 class Solver:
-    def __init__(self) -> None:
-        with open('Attributes//attributes_3.json', 'r') as file:
+    def __init__(self, attributes_path:str=None) -> None:
+
+        if attributes_path is None:
+            files = os.listdir("./Attributes")
+            files.sort()
+            file = files[-1]
+            self.attributes_path = f"./Attributes/{file}"
+        else:
+            self.attributes_path = attributes_path
+
+        print(f"Attributes file:{self.attributes_path}")
+
+        with open(self.attributes_path, 'r') as file:
             self.attributes = json.load(file)
             
         # Obtain regression parameters
@@ -68,7 +79,7 @@ class Solver:
         return result
     
 
-    def find_optimum(self, ideal_semantic: list, ideal_mds: list, semantic_weights: list, mds_weights: list, semantic_scale: float = 0.5):
+    def find_optimum(self, ideal_semantic: list, ideal_mds: list, semantic_weights: list, mds_weights: list, error_weights: np.ndarray = None):
         # Define Feature bounds
         feature_bounds = [(5, 20), (3, 10), (24, 96), (4, 40), (5, 100), (215, 475)]
 
@@ -76,7 +87,7 @@ class Solver:
         result = differential_evolution(
             combined_error,
             bounds=feature_bounds,
-            args=(ideal_semantic, ideal_mds, semantic_weights, mds_weights, semantic_scale, self)
+            args=(ideal_semantic, ideal_mds, semantic_weights, mds_weights, error_weights, self)
         )
 
         optimal_features = result.x
