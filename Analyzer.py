@@ -32,7 +32,9 @@ class Analyzer:
 
 
         # Instantiate DataLoader
+        print("before")
         self.data_loader = DataLoader(xlsx_path=self.xlsx_path)
+        print("after")
 
         if segment == "Sonites":
             # Instantiate Sonites

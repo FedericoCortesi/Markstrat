@@ -84,7 +84,7 @@ class HierarchicalClustering:
         plt.show()
         
 
-    def plot_scatter(self):
+    def plot_scatter(self, size:tuple=(10, 7)):
         """
         Plot the clusters in the 2D PCA-reduced space.
         """
@@ -93,16 +93,14 @@ class HierarchicalClustering:
         clusters_and_centroids = np.append(self.clusters_labels, list(range(self.n_clusters)))
 
         # Plot the graph
-        plt.figure(figsize=(10, 7))
+        plt.figure(figsize=size)
         plt.scatter(self.reduced_data_centroids[:, 0], self.reduced_data_centroids[:, 1], c=clusters_and_centroids, cmap='viridis') 
         
         # Add labels for each data point
-        for i, label in enumerate(self.df_data_centroids_scaled.index): # fix enumerate
-            plt.text(self.reduced_data_centroids[i, 0], self.reduced_data_centroids[i, 1], label, fontsize=7, ha='right', va='bottom')
-
-        #for i, (x, y) in enumerate(zip(centroids[:, 0], centroids[:, 1])):
-        #    plt.text(x, y, f'Cluster {i}', fontsize=10, ha='center', va='center', color='black')
-    
+        for i, label in enumerate(self.df_data_centroids_scaled.index):  # fix enumerate
+            plt.text(self.reduced_data_centroids[i, 0], 
+                     self.reduced_data_centroids[i, 1], 
+                     label, fontsize=7, ha='right', va='bottom')
         # Set equal scaling for both axes
         plt.gca().set_aspect('equal', adjustable='box')
     

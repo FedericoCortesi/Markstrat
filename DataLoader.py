@@ -166,3 +166,22 @@ class DataLoader:
         data.set_index("MARKET : Sonites", inplace=True)
         
         return data.iloc[:30].dropna()
+
+    def load_all_sonites(self) -> pd.DataFrame:
+        df1 = self.load_sonites_advertising_expenditures_absolute()
+
+        df2 = self.load_sonites_mds_values()
+
+        df3 = self.load_sonites_physical_characteristics()
+
+        df4 = self.load_sonites_semantic_values()
+        # Concatenate all the data frames along the rows (axis=0)
+        result = pd.concat([df1, df2, df3, df4], axis=1)
+
+        # Rename columns to add an indicator if they appear more than once
+        counts = result.columns.value_counts()
+        for column, count in counts.items():
+            if count > 1:
+                result.rename(columns={column: f"{column}_{counts[column] - i}" for i, _ in enumerate(range(count))}, inplace=True)
+        return result
+        
