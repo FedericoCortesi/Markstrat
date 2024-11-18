@@ -158,12 +158,25 @@ def compute_distance_from_centroids(df_observations: pd.DataFrame, df_centroids:
     # Discard unnecessary columns and obtain the values
     try:
         df_observations.set_index(["MARKET : Sonites"], inplace=True)
-    except KeyError:
+    except (AttributeError, KeyError):
         pass
 
     # Define the columns to keep
     columns_to_keep_semantic = ["# Features", "Design Index", "Battery Life", "Display Size", "Proc. Power", "Price"]
     columns_to_keep_mds = ["Economy", "Performance", "Convenience"]
+
+    if isinstance(df_observations, pd.DataFrame):
+        pass        
+    else:
+        if len(df_observations)==6:
+            columns = columns_to_keep_semantic
+        else:
+            columns = columns_to_keep_mds
+        df_observations = pd.DataFrame({
+            "observation": df_observations
+        }).T        
+        df_observations.columns = columns
+
 
     # Set columns to keep
     if any(col in df_observations.columns for col in columns_to_keep_semantic) or df_observations.shape[1] == 6:
@@ -172,6 +185,7 @@ def compute_distance_from_centroids(df_observations: pd.DataFrame, df_centroids:
         columns_to_keep = columns_to_keep_mds
     else:
         raise ValueError
+
 
     # Ensure centroids_df is a dataframe
     if type(df_centroids) is not pd.DataFrame:
@@ -276,15 +290,15 @@ def combined_error(features, ideal_semantic, ideal_mds, semantic_weights, mds_we
     semantic_relevance_score = relevance_score(predicted_semantic, ideal_semantic, semantic_weights, max_distance_1D=6)
     mds_relevance_score = relevance_score(predicted_mds, ideal_mds, mds_weights, max_distance_1D=40)
 
-
     # Calculate combined error as the weighted sum
     semantic_error = 1 - semantic_relevance_score
     mds_error = 1 - mds_relevance_score
-    
+
     # Use an array to hold both errors for the dot product with weights.
     errors = np.array([semantic_error, mds_error])
 
     # Normalize errors to 2
+    error_weights = np.array(error_weights)
     error_weights = (error_weights / sum(error_weights))*2
 
     # Now compute the total error as the dot product of the weights and the errors

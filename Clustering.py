@@ -115,7 +115,6 @@ class HierarchicalClustering:
         Get the centroids of the clusters by calculating the mean of each feature for each cluster.
         
         Returns:
-        - centroids: A DataFrame containing the centroids of the clusters.
         - PCA-reduced centroids: An array of the PCA components of the centroids.
         """
         index_centroids = [f"Centroid_{i}" for i in list(range(self.n_clusters))]

@@ -57,7 +57,7 @@ class Solver:
             sem_val = ((feature - intercept) / slope * 10) / 10
             result.append(sem_val)
 
-        return result
+        return np.array(result)
 
     def regress_mds(self, features_array):
         result = []
@@ -76,10 +76,11 @@ class Solver:
 
             result.append(sum(mds_val))
 
-        return result
+        return np.array(result)
     
 
-    def find_optimum(self, ideal_semantic: list, ideal_mds: list, semantic_weights: list, mds_weights: list, error_weights: np.ndarray = None):
+    def find_optimum(self, ideal_semantic: list, ideal_mds: list, semantic_weights: list, mds_weights: list=[1/3, 1/3, 1/3], 
+                     error_weights: np.ndarray = np.array([1,1])):
         # Define Feature bounds
         feature_bounds = [(5, 20), (3, 10), (24, 96), (4, 40), (5, 100), (215, 475)]
 

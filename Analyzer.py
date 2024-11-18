@@ -60,6 +60,7 @@ class Analyzer:
         if len(x_values)>3:
             spline = UnivariateSpline(x_values, y_values, k=3, s=0)
         else:
+            print("poly")
             var_k = len(x_values) - 1
             spline = UnivariateSpline(x_values, y_values, k=var_k, s=0)
 
@@ -288,5 +289,28 @@ class Analyzer:
         result_df["Weighted_Average"] = sum(result_df[sector] * weight for sector, weight in weights.items())
 
         return result_df
+
+
+    def compute_contribution(self, price:int=None, transfer_cost:int=None, distribution_list:list=None):
+        """
+        Order: Specialty, Mass, Online (stores)
+        """
+        assert np.sum(distribution_list)==1, "Weights must sum up to 1!"
+        
+        promotions = [0, 0.1, 0.05]
+
+        net_promotions = np.sum(np.dot(promotions, distribution_list))
+
+        retail_price = round(price*(1-net_promotions))
+        
+        distribution_margins = [0.40, 0.30, 0.30]
+
+        net_distribution_margin = np.sum(np.dot(distribution_margins, distribution_list))
+
+        selling_price = round(retail_price*(1-net_distribution_margin))
+
+        unit_contribution = selling_price - transfer_cost
+
+        return unit_contribution
 
 
