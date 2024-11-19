@@ -1,8 +1,9 @@
 import os
 import json
 import numpy as np
+import optuna
 from scipy.optimize import differential_evolution
-from Utils import combined_error
+from Utils import combined_error, combined_error_minimum_distance
 
 class Solver:
     def __init__(self, attributes_path:str=None) -> None:
@@ -99,3 +100,35 @@ class Solver:
         return optimal_features, min_error
 
 
+
+    def find_optimum_constrained(self, ideal_semantic: list, ideal_mds: list, semantic_weights: list,
+                                mds_weights: list = [1/3, 1/3, 1/3], error_weights: np.ndarray = np.array([1, 1])):
+        # Define Feature bounds
+        feature_bounds = [(5, 20), (3, 10), (24, 96), (4, 40), (5, 100), (215, 475)]
+
+        def objective(trial):
+            # Sample features within the defined bounds
+            features = [trial.suggest_float(f'feature_{i}', bound[0], bound[1]) for i, bound in enumerate(feature_bounds)]
+            
+            # Calculate the combined error using the original function (assumed to be defined outside this context)
+            combined_error = combined_error_minimum_distance(
+                features,
+                ideal_semantic, 
+                ideal_mds, 
+                semantic_weights, 
+                mds_weights, 
+                error_weights, 
+                self
+            )
+            return combined_error
+
+        # Create an Optuna study and optimize the objective function
+        study = optuna.create_study()
+        study.optimize(objective, n_trials=1000)  # You can adjust the number of trials as needed
+
+        optimal_features = study.best_params.values()
+        min_error = study.best_value
+        print("Optimal Features:", optimal_features)
+        print("Minimum Combined Error:", min_error)
+
+        return optimal_features, min_error

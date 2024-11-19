@@ -121,7 +121,7 @@ def relevance_score(observation:list=None, benchmark:list=None, weights:list=Non
     return 1 - (distance/max_distance)
 
 def compute_distance_from_centroids(df_observations: pd.DataFrame, df_centroids: pd.DataFrame = None, 
-                                    feature_weights: list = None, research:str="semantic", **kwargs):
+                                    feature_weights: list = None, **kwargs):
     """
     Compute multiple distance metrics between observations and centroids.
 
@@ -217,19 +217,22 @@ def compute_distance_from_centroids(df_observations: pd.DataFrame, df_centroids:
     observations_list = df_observations.values.tolist()
 
     # Initialize dictionaries to store results
-    abs_res = {}
-    rtv_res = {}
-    avg_res = {}
-    rlv_scr = {}
-    man_res = {}
+    absolute_res = {}
+    relative_res = {}
+    average_res = {}
+    relevance_scr = {}
+    manhattan_res = {}
+    w_relative_res = {}
+    
 
     for i, feat_values in enumerate(observations_list):
         # Initialize nested dicts for this observation
-        abs_res[df_observations.index[i]] = {}
-        rtv_res[df_observations.index[i]] = {}
-        avg_res[df_observations.index[i]] = {}
-        rlv_scr[df_observations.index[i]] = {}
-        man_res[df_observations.index[i]] = {}
+        absolute_res[df_observations.index[i]] = {}
+        relative_res[df_observations.index[i]] = {}
+        average_res[df_observations.index[i]] = {}
+        relevance_scr[df_observations.index[i]] = {}
+        manhattan_res[df_observations.index[i]] = {}
+        w_relative_res[df_observations.index[i]] = {}
 
         # If `ideal_df` is provided, use each row as a centroid, else use the provided `centroid`
         centroids = df_centroids.iterrows() 
@@ -241,25 +244,30 @@ def compute_distance_from_centroids(df_observations: pd.DataFrame, df_centroids:
 
             # Compute manhattan distance as a base
             manhattan_distance = np.abs(current_centroid - feat_values_array)
-            man_res[df_observations.index[i]][index] = manhattan_distance 
+            manhattan_res[df_observations.index[i]][index] = manhattan_distance 
             
             # Compute Euclidean distances
             absolute_distance = np.linalg.norm(current_centroid - feat_values_array)
-            abs_res[df_observations.index[i]][index] = absolute_distance
+            absolute_res[df_observations.index[i]][index] = absolute_distance
             
             # Compute relative distance
             relative_distance = manhattan_distance / feat_values_array
-            rtv_res[df_observations.index[i]][index] = relative_distance
+            relative_res[df_observations.index[i]][index] = relative_distance
             
             # Calculate weighted average distance 
             avg_distance = np.sum(feature_weights * manhattan_distance)
-            avg_res[df_observations.index[i]][index] = avg_distance
+            average_res[df_observations.index[i]][index] = avg_distance
             
             # Calculate relevance score (weighted by default)
             relevance = relevance_score(feat_values_array, current_centroid, feature_weights, **kwargs)
-            rlv_scr[df_observations.index[i]][index] = relevance
+            relevance_scr[df_observations.index[i]][index] = relevance
 
-    return abs_res, rtv_res, avg_res, rlv_scr, man_res
+            # Calculate weighted relative distance (not absolute!)
+            relative_metric = (current_centroid - feat_values_array)/feat_values_array
+            metric = np.dot(feature_weights, relative_metric)
+            w_relative_res[df_observations.index[i]][index] = np.sum(metric)
+
+    return absolute_res, relative_res, average_res, relevance_scr, manhattan_res, w_relative_res
 
 
 def combined_error(features, ideal_semantic, ideal_mds, semantic_weights, mds_weights, error_weights, model):
@@ -293,6 +301,7 @@ def combined_error(features, ideal_semantic, ideal_mds, semantic_weights, mds_we
     # Calculate combined error as the weighted sum
     semantic_error = 1 - semantic_relevance_score
     mds_error = 1 - mds_relevance_score
+    print("semantic_error", semantic_error, "mds_error", mds_error)
 
     # Use an array to hold both errors for the dot product with weights.
     errors = np.array([semantic_error, mds_error])
@@ -309,3 +318,59 @@ def combined_error(features, ideal_semantic, ideal_mds, semantic_weights, mds_we
     return total_error
 
 
+def combined_error_minimum_distance(features, ideal_semantic, ideal_mds, semantic_weights, mds_weights, error_weights, model):
+    """
+    Calculate the combined error based on relevance scores for semantic and MDS data given the features.
+
+    Parameters:
+    - features (list): Observation values for the features.
+    - ideal_semantic (list): Ideal values for the semantic features.
+    - ideal_mds (list): Ideal values for the MDS features.
+    - semantic_weights (list): Weights for the semantic features in the relevance score calculation.
+    - mds_weights (list): Weights for the MDS features in the relevance score calculation.
+    - semantic_scale (float): Scaling factor for the semantic score in the combined error calculation (default is 1).
+    - model: Model object used to compute the semantic and MDS values.
+
+    Returns:
+    - float: The total combined error.
+
+    The combined error is a weighted sum of the relevance scores of the semantic 
+    and MDS inputs, indicating how closely the observation aligns with the ideal values.
+    """
+    # Normalize errors to 2
+    error_weights = np.array(error_weights)
+    error_weights = (error_weights / sum(error_weights))*2
+    
+    # Obtain the predicted semantic and MDS values using the model
+    predicted_semantic = model.regress_semantic(features)
+    predicted_mds = model.regress_mds(features)
+
+    # Compute relative distances for semantic and MDS predictions
+    semantic_relative_distance_raw = compute_distance_from_centroids(predicted_semantic, ideal_semantic, semantic_weights, max_distance_1D=6)
+    semantic_relative_distance = np.abs(semantic_relative_distance_raw[5][list(semantic_relative_distance_raw[5].keys())[0]]['centroid'])
+
+    mds_relative_distance_raw = compute_distance_from_centroids(predicted_mds, ideal_mds, mds_weights, max_distance_1D=40)
+    mds_relative_distance = np.abs(mds_relative_distance_raw[5][list(mds_relative_distance_raw[5].keys())[0]]['centroid'])
+
+    # Compute relevance scores for semantic and MDS predictions
+    semantic_relevance_score = relevance_score(predicted_semantic, ideal_semantic, semantic_weights, max_distance_1D=6)
+    mds_relevance_score = relevance_score(predicted_mds, ideal_mds, mds_weights, max_distance_1D=40)
+
+    # Calculate combined error as the weighted sum
+    relevance_semantic_error = 1 - semantic_relevance_score
+    relevance_mds_error = 1 - mds_relevance_score
+
+    # Use an array to hold both errors for the dot product with weights.
+    relevance_errors = np.array([relevance_semantic_error, relevance_mds_error])
+
+    # Now compute the total error as the dot product of the weights and the errors
+    total_relevance_error_array = np.dot(error_weights, relevance_errors)
+    total_relevance_error = np.sum(total_relevance_error_array)
+
+    # Compute combined distance
+    distance_unweighted = np.array([semantic_relative_distance, mds_relative_distance])
+    distance = np.dot(distance_unweighted, error_weights)
+
+    # Finalize error
+    final_error = total_relevance_error + distance
+    return final_error
