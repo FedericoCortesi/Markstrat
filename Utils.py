@@ -151,6 +151,7 @@ def compute_distance_from_centroids(df_observations: pd.DataFrame, df_centroids:
             - avg_res (dict): Weighted sum of manhattan distances for each observation and centroid.
             - rlv_scr (dict): Relevance scores for each observation and centroid.
             - man_res (dict): Manhattan distance for each feature and centroid.
+            - w_relative_res (dict): Weighted su of the relative distances (not abs) for each observation and centroid.
 
     Each dictionary key represents an observation, and each value is a dictionary of distances or scores 
     calculated for that observation relative to each centroid.
@@ -334,7 +335,7 @@ def combined_error_minimum_distance(features, ideal_semantic, ideal_mds, semanti
     Returns:
     - float: The total combined error.
 
-    The combined error is a weighted sum of the relevance scores of the semantic 
+    The combined error is a weighted sum of the relevance scores and relative distance of the semantic 
     and MDS inputs, indicating how closely the observation aligns with the ideal values.
     """
     # Normalize errors to 2

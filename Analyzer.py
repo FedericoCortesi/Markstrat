@@ -30,12 +30,6 @@ class Analyzer:
         else:
             print("No weights provided")
 
-
-        # Instantiate DataLoader
-        print("before")
-        self.data_loader = DataLoader(xlsx_path=self.xlsx_path)
-        print("after")
-
         if segment == "Sonites":
             # Instantiate Sonites
             self.sonites = Sonites()
@@ -185,7 +179,7 @@ class Analyzer:
                 - avg_res (dict): Weighted sum of manhattan distances for each observation and centroid.
                 - rlv_scr (dict): Relevance scores for each observation and centroid.
                 - man_res (dict): Manhattan distance for each feature and centroid.
-
+                - w_relative_res (dict): Weighted su of the relative distances (not abs) for each observation and centroid.
         """
         if weighted == "default":
             feature_weights = self.rel_importance_features
