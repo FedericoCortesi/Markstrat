@@ -57,7 +57,7 @@ class Scraper:
         self.chrome_options.add_argument('--disable-dev-shm-usage')  # Optional, for performance
 
         # Initialize Chrome with these options
-        self.driver = webdriver.Chrome(ChromeDriverManager().install(), options=self.chrome_options)
+        self.driver = webdriver.Chrome(options=self.chrome_options)
         return 
 
 

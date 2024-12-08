@@ -291,14 +291,15 @@ class Analyzer:
         """
         assert np.sum(distribution_list)==1, "Weights must sum up to 1!"
         
+        # Compute promotions (discounts)
         promotions = [0, 0.1, 0.05]
-
         net_promotions = np.sum(np.dot(promotions, distribution_list))
 
+        # COmpute retail prive
         retail_price = round(price*(1-net_promotions))
         
+        # Compute margins
         distribution_margins = [0.40, 0.30, 0.30]
-
         net_distribution_margin = np.sum(np.dot(distribution_margins, distribution_list))
 
         selling_price = round(retail_price*(1-net_distribution_margin))
