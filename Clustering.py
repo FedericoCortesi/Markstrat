@@ -100,7 +100,7 @@ class HierarchicalClustering:
         for i, label in enumerate(self.df_data_centroids_scaled.index):  # fix enumerate
             plt.text(self.reduced_data_centroids[i, 0], 
                      self.reduced_data_centroids[i, 1], 
-                     label, fontsize=7, ha='right', va='bottom')
+                     label, fontsize=10, ha='right', va='bottom')
         # Set equal scaling for both axes
         plt.gca().set_aspect('equal', adjustable='box')
     

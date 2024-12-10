@@ -2,16 +2,29 @@ import pandas as pd
 import numpy as np
 from scipy.interpolate import UnivariateSpline
 from DataLoader import DataLoader
-from Brands import Sonites
+from Brands import Brands
 
 from Utils import compute_distance_from_centroids
 
 class Analyzer:
     def __init__(self, 
                  xlsx_path:str=None,
-                 segment:str="Sonites", 
+                 sector:str=None, 
                  marketing_mix_segment_weights:dict=None,
                  last_period:int=None):
+        
+        # Define segment 
+        if sector == "Sonites":
+            self.sector = sector
+            
+        elif sector == "Vodites":
+            self.sector = sector
+    
+        else:
+            raise ValueError        
+    
+        # Initialize Brands
+        self.brands = Brands(sector=sector)
         
         # Define path
         self.xlsx_path = xlsx_path
@@ -30,18 +43,9 @@ class Analyzer:
         else:
             print("No weights provided")
 
-        if segment == "Sonites":
-            # Instantiate Sonites
-            self.sonites = Sonites()
-            
-            # Obtain the relative importance of features
-            self.rel_importance_features = self.sonites.rel_importance_features
 
-        elif segment == "Vodites":
-            pass
-
-        else:
-            raise ValueError        
+        # Obtain the relative importance of features
+        self.rel_importance_features = self.brands.rel_importance_features
 
     def _interpolate_and_predict(self, x_values, y_values, x_new=None, steps=20):
         if x_new == None:
@@ -51,12 +55,7 @@ class Analyzer:
         else:
             pass
 
-        if len(x_values)>3:
-            spline = UnivariateSpline(x_values, y_values, k=3, s=0)
-        else:
-            print("poly")
-            var_k = len(x_values) - 1
-            spline = UnivariateSpline(x_values, y_values, k=var_k, s=0)
+        spline = UnivariateSpline(x_values, y_values, k=1, s=0)
 
         y_interp = spline(x_new)
 
@@ -207,6 +206,8 @@ class Analyzer:
             weighted=weighted,
             **kwargs
         )
+
+        print(distance_semantic)
 
         # Initialize dict to store results
         dict_res = {}

@@ -12,10 +12,12 @@ import os
 import numpy as np
 from dotenv import load_dotenv
 import os
+import time
+import json
 
 
 class Scraper:
-    def __init__(self, headless:bool=True) -> None:
+    def __init__(self, headless:bool=False) -> None:
         # Load environment variables
         load_dotenv('./variables.env')
 
@@ -117,15 +119,35 @@ class Scraper:
         return
     
 
-    def _access_regression_semantic(self, reg_type:str="Create", brand:str="MOVE"):
-        self._login()
+    def _access_regression_semantic(self, reg_type:str="Create", brand:str="MOVE", sector:str=None):
+        # Validate sector input
+        valid_sectors = ["Sonites", "Vodites"]
+        if sector not in valid_sectors:
+            raise ValueError(f"Invalid sector. Choose from {valid_sectors}")
 
+        # Login
+        self._login()
+        
         # Wait until the tile is clickable by class name, then click it
         tile = WebDriverWait(self.driver, 10).until(
             EC.element_to_be_clickable((By.CLASS_NAME, 'ANALYZE_4_3'))
         )
         tile.click()
 
+        # Wait for the dropdown of the sectoer to be visible
+        dropdown = WebDriverWait(self.driver, 10).until(
+            EC.visibility_of_element_located((By.ID, "Market"))
+        )
+
+        # Initialize the Select object
+        select = Select(dropdown)
+
+        # Wait until the option with the text of the sector is available and select it
+        select.select_by_visible_text(sector)
+
+        time.sleep(0.5)
+
+        # Define radio button xpath 
         xpath = f"//input[@type='radio' and @value='{reg_type}']"
 
         # Wait until the dynamic radio button is clickable based on `type`, then click it
@@ -134,7 +156,9 @@ class Scraper:
         )
         create_radio_button.click() 
 
-        if reg_type == "CheckModified" or "Modify":
+        print(reg_type)
+
+        if reg_type == "CheckModified" or reg_type == "Modify":
             # Wait for Dropdown
             dropdown = WebDriverWait(self.driver, 10).until(
                 EC.visibility_of_element_located((By.ID, "ddlBrand"))
@@ -491,5 +515,38 @@ class Scraper:
         res = self.run_regression_mds(inputs_array=inputs)
 
         return res
-    
-    
+       
+    def download_attributes(self, sector: str = None, period:int=None):
+        if period == None:
+            raise ValueError("Provide a period number")
+        else:
+            pass
+
+        # Access regression to spawn the JSON data
+        self._access_regression_semantic("Create", sector=sector)
+
+        # Wait until the 'vm' variable is defined in the JavaScript context
+        WebDriverWait(self.driver, 10).until(
+            lambda driver: driver.execute_script('return typeof vm !== "undefined";')
+        )
+
+        # Extract the 'vm' variable using JavaScript execution
+        json_data = self.driver.execute_script("return JSON.stringify(vm);")
+
+        # Convert the extracted string to a Python dictionary
+        try:
+            data = json.loads(json_data)
+        except json.JSONDecodeError as e:
+            raise ValueError(f"Failed to decode JSON: {e}")
+
+        # Filter the dict        
+        keys_to_keep = ['Brands', 'DimSlopIntercept', 'MDSConsts', 'SemMDSCoef']
+
+        filtered_dict = {key: data[key] for key in keys_to_keep if key in data}
+
+        print(filtered_dict)
+
+        with open(f'./Attributes/{sector}/attributes_{sector}_{period}.json', 'w+') as json_file:
+            json.dump(filtered_dict, json_file, indent=4)
+
+        return 

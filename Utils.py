@@ -117,8 +117,11 @@ def relevance_score(observation:list=None, benchmark:list=None, weights:list=Non
     max_distance = np.sqrt(np.sum(weights * (max_distance_1D**2)))
 
     distance = weighted_distance(observation, benchmark, weights)
+    
+    result = 1 - (distance/max_distance)
 
-    return 1 - (distance/max_distance)
+
+    return result
 
 def compute_distance_from_centroids(df_observations: pd.DataFrame, df_centroids: pd.DataFrame = None, 
                                     feature_weights: list = None, **kwargs):

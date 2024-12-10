@@ -3,21 +3,25 @@ import pandas as pd
 from DataLoader import DataLoader
 from Utils import compute_dataframe_cond_prob, cap_dataframe_values
 
-class Sonites:
+class Brands:
     """
-    A class representing Sonites with physical and semantic characteristics.
+    A class representing Brands with physical and semantic characteristics.
     """
-    def __init__(self, xlsx_path:str=None) -> None:
+    def __init__(self, xlsx_path:str=None, sector:str=None) -> None:
         """
-        Initialize the Sonites class using a DataLoader instance.
+        Initialize the Brands class using a DataLoader instance.
         """
+        # Store sector 
+        self.sector = sector 
+        print(self.sector)
+
         # Initialize Data Loader
-        self.data_loader = DataLoader(xlsx_path)
+        self.data_loader = DataLoader(xlsx_path, sector=self.sector)
         
         # Load product data through the data loader
-        self.df_sonites_phys_char = self.data_loader.load_sonites_physical_characteristics()
-        self.df_sonites_semantic = self.data_loader.load_sonites_semantic_values()
-        self.df_sonites_mds = self.data_loader.load_sonites_mds_values()
+        self.df_phys_char = self.data_loader.load_physical_characteristics()
+        self.df_brands_semantic = self.data_loader.load_semantic_values()
+        self.df_brands_mds = self.data_loader.load_mds_values()
         
         # Load segment data studies through the data loader
         self.df_segments_semantic = self.data_loader.load_segment_semantic_values()
@@ -38,23 +42,23 @@ class Sonites:
         self.most_mds = self.get_mds("MOST")
 
     def get_features(self, brand:str=None):
-        dataframe = self.df_sonites_phys_char.copy()
+        dataframe = self.df_phys_char.copy()
         result = dataframe[dataframe.index == brand]
         return result
 
     def get_semantic(self, brand:str=None):
-        dataframe = self.df_sonites_semantic.copy()
+        dataframe = self.df_brands_semantic.copy()
         result = dataframe[dataframe.index == brand].copy()
         return result
     
     def get_mds(self, brand:str=None):
-        dataframe = self.df_sonites_mds.copy()
+        dataframe = self.df_brands_mds.copy()
         result = dataframe[dataframe.index == brand].copy()
         return result
 
     def get_marketing_mixes(self, capped:bool=False)->pd.DataFrame:
         # Obtain the marketing dataframe
-        df_advertisement_expenditures_abs = self.data_loader.load_sonites_advertising_expenditures_absolute()
+        df_advertisement_expenditures_abs = self.data_loader.load_advertising_expenditures_absolute()
         
         # Compute the dataframe with conditional probabilities
         df_advertisement_expenditures_rel = compute_dataframe_cond_prob(df_advertisement_expenditures_abs)
@@ -73,7 +77,7 @@ class Sonites:
 
 
     def get_comprehensive_df_semantic(self, last_period:bool=True)->pd.DataFrame:
-        df_brands = self.df_sonites_semantic.copy()
+        df_brands = self.df_brands_semantic.copy()
         df_segments = self.df_segments_semantic.copy()
         
         if last_period:
@@ -86,7 +90,7 @@ class Sonites:
         return df_result
 
     def get_comprehensive_df_mds(self, last_period:bool=True)->pd.DataFrame:
-        df_brands = self.df_sonites_mds.copy()
+        df_brands = self.df_brands_mds.copy()
         df_segments = self.df_segments_mds.copy()
         
         if last_period:
