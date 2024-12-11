@@ -19,7 +19,7 @@ class Brands:
         self.data_loader = DataLoader(xlsx_path, sector=self.sector)
         
         # Load product data through the data loader
-        self.df_phys_char = self.data_loader.load_physical_characteristics()
+        self.df_brands_physical = self.data_loader.load_physical_characteristics()
         self.df_brands_semantic = self.data_loader.load_semantic_values()
         self.df_brands_mds = self.data_loader.load_mds_values()
         
@@ -42,7 +42,7 @@ class Brands:
         self.most_mds = self.get_mds("MOST")
 
     def get_features(self, brand:str=None):
-        dataframe = self.df_phys_char.copy()
+        dataframe = self.df_brands_physical.copy()
         result = dataframe[dataframe.index == brand]
         return result
 

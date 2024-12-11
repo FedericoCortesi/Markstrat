@@ -124,7 +124,7 @@ def relevance_score(observation:list=None, benchmark:list=None, weights:list=Non
     return result
 
 def compute_distance_from_centroids(df_observations: pd.DataFrame, df_centroids: pd.DataFrame = None, 
-                                    feature_weights: list = None, **kwargs):
+                                    feature_weights: list = None, sector:str = None, **kwargs):
     """
     Compute multiple distance metrics between observations and centroids.
 
@@ -159,15 +159,28 @@ def compute_distance_from_centroids(df_observations: pd.DataFrame, df_centroids:
     Each dictionary key represents an observation, and each value is a dictionary of distances or scores 
     calculated for that observation relative to each centroid.
     """
-    # Discard unnecessary columns and obtain the values
-    try:
-        df_observations.set_index(["MARKET : Sonites"], inplace=True)
-    except (AttributeError, KeyError):
-        pass
+    if sector == "Sonites":
+        # Discard unnecessary columns and obtain the values
+        try:
+            df_observations.set_index(["MARKET : Sonites"], inplace=True)
+        except (AttributeError, KeyError):
+            pass
+        # Define the columns to keep
+        columns_to_keep_semantic = ["# Features", "Design Index", "Battery Life", "Display Size", "Proc. Power", "Price"]
+        columns_to_keep_mds = ["Economy", "Performance", "Convenience"]
 
-    # Define the columns to keep
-    columns_to_keep_semantic = ["# Features", "Design Index", "Battery Life", "Display Size", "Proc. Power", "Price"]
-    columns_to_keep_mds = ["Economy", "Performance", "Convenience"]
+    if sector == "Vodites":
+        # Discard unnecessary columns and obtain the values
+        try:
+            df_observations.set_index(["MARKET : Vodites"], inplace=True)
+        except (AttributeError, KeyError):
+            pass
+        # Define the columns to keep
+        columns_to_keep_semantic = ["Resolution", "Energy Efficiency", "Carbon Footprint", "Connectivity", "No. of Apps", "Price"]
+        columns_to_keep_mds = ["Economy", "Performance", "Convenience"]   
+
+    else:
+        raise ValueError(f"Invalid Sector: {sector}") 
 
     if isinstance(df_observations, pd.DataFrame):
         pass        

@@ -61,6 +61,7 @@ class Solver:
         result = []
         # Iterate over features
         for n, feature in enumerate(features_array):
+            print(self.features_index,n)
             index = str(self.features_index[n])
 
             # Find Values

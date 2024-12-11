@@ -193,6 +193,7 @@ class Analyzer:
             df_observations,
             df_centroids=df_centroids,
             feature_weights=feature_weights,
+            sector=self.sector,
             **kwargs 
         )
     def get_n_closest(self, df_base: pd.DataFrame = None, df_performers: pd.DataFrame = None, num_top: int = 3, distance_metric: int = 3, **kwargs):
@@ -207,6 +208,7 @@ class Analyzer:
             **kwargs
         )
 
+        print("prima")
         print(distance_semantic)
 
         # Initialize dict to store results
@@ -221,9 +223,9 @@ class Analyzer:
 
             # Get indices of the three smallest distances
             if distance_metric == 3:
-                top_n_indices = np.argsort(list_distances)[-3:][::-1]
+                top_n_indices = np.argsort(list_distances)[-num_top:][::-1]
             else:
-                top_n_indices = np.argsort(list_distances)[:3]
+                top_n_indices = np.argsort(list_distances)[:num_top]
 
             # initialize list to store n best
             list_res = []
