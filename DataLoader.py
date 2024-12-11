@@ -120,10 +120,13 @@ class DataLoader:
         Returns:
             pd.DataFrame: Cleaned data frame of Sonites' physical characteristics.
         """
+        # Excel differs
+        s_rows = 19  if self.sector == "Sonites" else 17
+
         data = pd.read_excel(self.xlsx_path, 
                              sheet_name=self.sector,
                              usecols="D:L",
-                             skiprows=17,
+                             skiprows=s_rows,
                              nrows=10)
         
         data.set_index(f"MARKET : {self.sector}", inplace=True)

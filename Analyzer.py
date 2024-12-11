@@ -208,9 +208,6 @@ class Analyzer:
             **kwargs
         )
 
-        print("prima")
-        print(distance_semantic)
-
         # Initialize dict to store results
         dict_res = {}
         
@@ -292,7 +289,7 @@ class Analyzer:
         """
         Order: Specialty, Mass, Online (stores)
         """
-        assert np.sum(distribution_list)==1, "Weights must sum up to 1!"
+        assert np.isclose(np.sum(distribution_list), 1), "Weights must sum up to 1!"
         
         # Compute promotions (discounts)
         promotions = [0, 0.1, 0.05]

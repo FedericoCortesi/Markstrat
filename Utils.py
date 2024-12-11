@@ -169,7 +169,7 @@ def compute_distance_from_centroids(df_observations: pd.DataFrame, df_centroids:
         columns_to_keep_semantic = ["# Features", "Design Index", "Battery Life", "Display Size", "Proc. Power", "Price"]
         columns_to_keep_mds = ["Economy", "Performance", "Convenience"]
 
-    if sector == "Vodites":
+    elif sector == "Vodites":
         # Discard unnecessary columns and obtain the values
         try:
             df_observations.set_index(["MARKET : Vodites"], inplace=True)
@@ -177,7 +177,7 @@ def compute_distance_from_centroids(df_observations: pd.DataFrame, df_centroids:
             pass
         # Define the columns to keep
         columns_to_keep_semantic = ["Resolution", "Energy Efficiency", "Carbon Footprint", "Connectivity", "No. of Apps", "Price"]
-        columns_to_keep_mds = ["Economy", "Performance", "Convenience"]   
+        columns_to_keep_mds = ['Autonomy', 'Sophistication', 'Economy']
 
     else:
         raise ValueError(f"Invalid Sector: {sector}") 
